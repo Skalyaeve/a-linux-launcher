@@ -19,62 +19,117 @@ int main(void){
         exit(errno);
     };
     const int screen = DefaultScreen(display);
+
+    t_config* const cfg = config(display, screen);
+    if (!cfg){
+        XCloseDisplay(display);
+        exit(errno);
+    }
     Window window = XCreateSimpleWindow(
-        display, RootWindow(display, screen), 10, 10, 200, 200, 1,
-        BlackPixel(display, screen), WhitePixel(display, screen));
+        display, RootWindow(display, screen),
+        cfg->x, cfg->y, 200, 200, cfg->border_size,
+        cfg->border_color.pixel, cfg->bg_color.pixel);
     if (!window){
+        free(cfg);
         XCloseDisplay(display);
         perror("XCreateSimpleWindow");
         exit(errno);
     }
-    if (config(display, window) == FAILURE){
+    GC gc = XCreateGC(display, window, 0, NULL);
+    if (!gc){
+        free(cfg);
+        XCloseDisplay(display);
+        perror("XCreateGC");
+        exit(errno);
+    }
+    XSetForeground(display, gc, cfg->fg_color.pixel);
+    XFontStruct* const font_info = XLoadQueryFont(display, cfg->font);
+    if (!font_info) {
+        free(cfg);
+        XCloseDisplay(display);
+        perror("XLoadQueryFont");
+        exit(errno);
+    }
+    XSetFont(display, gc, font_info->fid);
+    XFreeFont(display, font_info);
+    free(cfg);
+    if (setprops(display, window) == FAILURE){
         XCloseDisplay(display);
         exit(errno);
     }
+    XSelectInput(display, window, ExposureMask | KeyPressMask);
     XMapWindow(display, window);
-    return update(display, window, screen);
+    return update(display, window, gc);
 }
 
-byte config(Display* const display, Window window){
-    Atom type = XInternAtom(
+t_config* config(Display* const display, const int screen){
+    Colormap colormap = DefaultColormap(display, screen);
+    t_config* const cfg = malloc(sizeof(t_config));
+    if (!cfg){
+        perror("malloc");
+        return NULL;
+    }
+    cfg->font = D_FONT;
+    cfg->x = D_X;
+    cfg->y = D_Y;
+    cfg->border_size = D_BORDER_SIZE;
+
+    cfg->border_color.red = D_BORDER_R * 257;
+    cfg->border_color.green = D_BORDER_V * 257;
+    cfg->border_color.blue = D_BORDER_B * 257;
+    XAllocColor(display, colormap, &cfg->border_color);
+
+    cfg->bg_color.red = D_BG_R * 257;
+    cfg->bg_color.green = D_BG_V * 257;
+    cfg->bg_color.blue = D_BG_B * 257;
+    XAllocColor(display, colormap, &cfg->bg_color);
+
+    cfg->fg_color.red = D_FG_R * 257;
+    cfg->fg_color.green = D_FG_V * 257;
+    cfg->fg_color.blue = D_FG_B * 257;
+    XAllocColor(display, colormap, &cfg->fg_color);
+    return cfg;
+}
+
+byte setprops(Display* const display, Window window){
+    // ================ Setting window as floating
+    Atom window_type = XInternAtom(
         display, "_NET_WM_WINDOW_TYPE", False);
-    if (!type){
+    if (!window_type){
         perror("XInternAtom");
         return FAILURE;
     }
-    Atom type_dialog = XInternAtom(
+    Atom window_type_dialog = XInternAtom(
         display, "_NET_WM_WINDOW_TYPE_DIALOG", False);
-    if (!type_dialog){
+    if (!window_type_dialog){
         perror("XInternAtom");
         return FAILURE;
     }
     if (!XChangeProperty(
-        display, window, type, XA_ATOM, 32, PropModeReplace,
-        (unsigned char *) &type_dialog, 1)){
+        display, window, window_type, XA_ATOM, 32,
+        PropModeReplace, (uchar *) &window_type_dialog, 1)){
         perror("XChangeProperty");
         return FAILURE;
     }
-    XSelectInput(display, window, ExposureMask | KeyPressMask);
-    return SUCCESS;
-}
-
-byte update(Display* const display, Window window,
-            const int screen){
-    XEvent event;
-    while (!stop){
-        while (XPending(display) > 0){
-            XNextEvent(display, &event);
-            switch (event.type){
-                case Expose:
-                    XFillRectangle(
-                        display, window,
-                        DefaultGC(display, screen),
-                        20, 20, 10, 10);
-                    break;
-                case KeyPress: stop = True;
-            }
-        }
+    // ================ Removing system window borders
+    Atom hints = XInternAtom( display, "_MOTIF_WM_HINTS", False);
+    if (!hints){
+        perror("XInternAtom");
+        return FAILURE;
     }
-    XCloseDisplay(display);
+    struct{
+        const ulong flags;
+        const ulong functions;
+        const ulong decorations;
+        const long input_mode;
+        const ulong status;
+    }s_hints = {2, 0, 0, 0, 0};
+
+    if (!XChangeProperty(
+        display, window, hints, hints, 32,
+        PropModeReplace, (uchar *)&s_hints, 5)){
+        perror("XChangeProperty");
+        return FAILURE;
+    }
     return SUCCESS;
 }

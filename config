@@ -1,0 +1,16 @@
+x = 20
+y = 20
+border-size = 1
+border-color = 242424
+bg-color = 121212
+fg-color = ffffff
+focus-bg-color = 3f2a54
+focus-fg-color = ffffff
+x-padding = 16
+y-padding = 16
+spacing = 8
+#font=10x20
+font = -misc-terminess nerd font propo-medium-r-normal--20-0-0-0-p-0-iso10646-1
+terminal = x-terminal-emulator
+browser = firefox-esr --new_tab
+search-engine = google.com/search?q=
