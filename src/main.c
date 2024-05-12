@@ -1,94 +1,80 @@
 #include "../include/header.h"
 
-static GtkWidget* window;
-static GtkWidget* list_box;
+volatile sig_atomic_t stop = False;
+void sig_hdl(int sig){ (void)sig; stop = True; }
 
-static void on_row_activated(GtkListBox* box, GtkListBoxRow* row, gpointer data) {
-    (void)box;
-    (void)data;
-    if (row) {
-        GtkWidget* label = gtk_bin_get_child(GTK_BIN(row));
-        const gchar* text = gtk_label_get_text(GTK_LABEL(label));
-        g_print("%s\n", text);
+int main(void){
+    t_sigaction sa;
+    sa.sa_handler = sig_hdl;
+    sa.sa_flags = 0;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
+    sigaction(SIGQUIT, &sa, NULL);
+    sigaction(SIGHUP, &sa, NULL);
+
+    Display* const display = XOpenDisplay(NULL);
+    if (!display){
+        perror("XOpenDisplay");
+        exit(errno);
+    };
+    const int screen = DefaultScreen(display);
+    Window window = XCreateSimpleWindow(
+        display, RootWindow(display, screen), 10, 10, 200, 200, 1,
+        BlackPixel(display, screen), WhitePixel(display, screen));
+    if (!window){
+        XCloseDisplay(display);
+        perror("XCreateSimpleWindow");
+        exit(errno);
     }
-}
-
-static gboolean on_motion_notify(GtkWidget* widget, GdkEventMotion* event, gpointer data) {
-    (void)data;
-    GtkListBox* box = GTK_LIST_BOX(widget);
-    GtkListBoxRow* row = gtk_list_box_get_row_at_y(box, event->y);
-    if (row) {
-        gtk_list_box_select_row(box, row);
+    if (config(display, window) == FAILURE){
+        XCloseDisplay(display);
+        exit(errno);
     }
-    return FALSE;
+    XMapWindow(display, window);
+    return update(display, window, screen);
 }
 
-static void destroy(GtkWidget* widget, gpointer data) {
-    (void)widget;
-    (void)data;
-    gtk_main_quit();
-}
-
-static void activate(GtkApplication* const app, gpointer data){
-    (void)data;
-    window = gtk_application_window_new(app);
-    gtk_window_set_decorated(GTK_WINDOW(window), FALSE);
-    gtk_window_set_type_hint(
-        GTK_WINDOW(window), GDK_WINDOW_TYPE_HINT_DIALOG);
-
-    GtkStyleContext* const context = gtk_widget_get_style_context(
-        window);
-    GtkCssProvider* const provider = gtk_css_provider_new();
-    gtk_css_provider_load_from_data(provider, BOXCSS, -1, NULL);
-    gtk_style_context_add_provider(
-        context, GTK_STYLE_PROVIDER(provider),
-        GTK_STYLE_PROVIDER_PRIORITY_USER);
-    g_object_unref(provider); // Unref the provider after use
-
-    list_box = gtk_list_box_new();
-    gtk_container_add(GTK_CONTAINER(window), list_box);
-
-    for (ubyte i = 0; i < 10; i++) {
-        char* text = g_strdup_printf("Line %d", i + 1);
-        GtkWidget* label = gtk_label_new(text);
-        GtkWidget* row = gtk_list_box_row_new();
-        gtk_container_add(GTK_CONTAINER(row), label);
-        gtk_container_add(GTK_CONTAINER(list_box), row);
-        g_free(text);
+byte config(Display* const display, Window window){
+    Atom type = XInternAtom(
+        display, "_NET_WM_WINDOW_TYPE", False);
+    if (!type){
+        perror("XInternAtom");
+        return FAILURE;
     }
-    g_signal_connect(
-        list_box, "motion-notify-event",
-        G_CALLBACK(on_motion_notify), NULL);
-    g_signal_connect(
-        list_box, "row-activated",
-        G_CALLBACK(on_row_activated), NULL);
-    g_signal_connect(
-        window, "destroy", G_CALLBACK(destroy), NULL);
-
-    gtk_widget_show_all(window);
+    Atom type_dialog = XInternAtom(
+        display, "_NET_WM_WINDOW_TYPE_DIALOG", False);
+    if (!type_dialog){
+        perror("XInternAtom");
+        return FAILURE;
+    }
+    if (!XChangeProperty(
+        display, window, type, XA_ATOM, 32, PropModeReplace,
+        (unsigned char *) &type_dialog, 1)){
+        perror("XChangeProperty");
+        return FAILURE;
+    }
+    XSelectInput(display, window, ExposureMask | KeyPressMask);
+    return SUCCESS;
 }
 
-GtkApplication* app_sgt(const char* const id){
-    static GtkApplication* app = NULL;
-    if (id) app = gtk_application_new(
-        id, G_APPLICATION_DEFAULT_FLAGS);
-    else g_object_unref(app);
-    return app;
-}
-
-void sig_hdl(int sig){
-    app_sgt(NULL);
-    exit(sig);
-}
-
-int main(int ac, char** av){
-    signal(SIGINT, sig_hdl);
-    signal(SIGTERM, sig_hdl);
-
-    GtkApplication* const app = app_sgt("org.gtk.launcher");
-    g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
-
-    const int code = g_application_run(G_APPLICATION(app), ac, av);
-    g_object_unref(app);
-    return code;
+byte update(Display* const display, Window window,
+            const int screen){
+    XEvent event;
+    while (!stop){
+        while (XPending(display) > 0){
+            XNextEvent(display, &event);
+            switch (event.type){
+                case Expose:
+                    XFillRectangle(
+                        display, window,
+                        DefaultGC(display, screen),
+                        20, 20, 10, 10);
+                    break;
+                case KeyPress: stop = True;
+            }
+        }
+    }
+    XCloseDisplay(display);
+    return SUCCESS;
 }

@@ -1,8 +1,8 @@
 NAME=launcher
 
 CC=gcc
-CFLAGS=-Wall -Wextra -Werror $(shell pkg-config --cflags gtk+-3.0)
-LDFLAGS=$(shell pkg-config --libs gtk+-3.0)
+CFLAGS=-Wall -Wextra -Werror
+LDFLAGS=-lX11
 
 INCLUDE_DIR=include
 HEADER_EXT=h
