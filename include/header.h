@@ -4,24 +4,6 @@
 #define SUCCESS 0
 #define FAILURE 1
 
-#define D_FONT "-misc-terminess nerd font propo-medium-r-normal--20-0-0-0-p-0-iso10646-1"
-//#define D_FONT "10x20"
-#define D_X 20
-#define D_Y 20
-#define D_BORDER_SIZE 4
-#define D_BORDER_R 24
-#define D_BORDER_V 24
-#define D_BORDER_B 24
-#define D_BG_R 12
-#define D_BG_V 12
-#define D_BG_B 12
-#define D_FG_R 255
-#define D_FG_V 255
-#define D_FG_B 255
-#define D_SEL_R 42
-#define D_SEL_V 42
-#define D_SEL_B 42
-
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <stdio.h>
@@ -31,25 +13,58 @@
 #include <errno.h>
 #include <signal.h>
 
+typedef char bool;
 typedef char byte;
 typedef unsigned char ubyte;
 typedef unsigned char uchar;
 typedef unsigned short ushort;
 typedef unsigned long ulong;
-typedef struct sigaction t_sigaction;
 
-typedef struct s_config{
-    char* font;
+typedef struct sigaction Sigaction;
+typedef struct stat Stat;
+typedef struct dirent Dirent;
+
+typedef struct s_config Config;
+typedef struct s_entry Entry;
+typedef struct s_windows Windows;
+typedef struct s_menu Menu;
+
+struct s_config{
+    char* path;
     ushort x;
     ushort y;
     ubyte border_size;
     XColor border_color;
     XColor bg_color;
     XColor fg_color;
-} t_config;
+    XColor focus_bg_color;
+    XColor focus_fg_color;
+    ushort x_padding;
+    ushort y_padding;
+    ushort spacing;
+    char* font;
+    char* terminal;
+    char* browser;
+    char* search_engine;
+};
 
-t_config* config(Display* const display, const int screen);
-byte setprops(Display* const display, Window window);
-byte update(Display* const display, Window window, GC gc);
+struct s_entry{
+    char* name;
+    char* exec;
+    Windows* child;
+    Entry* next;
+};
+
+struct s_windows{
+    Window window;
+    Entry* entries;
+};
+
+struct s_menu{
+    Display* display;
+    int screen;
+    GC gc;
+    Windows* root;
+};
 
 #endif
