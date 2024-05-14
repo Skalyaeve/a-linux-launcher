@@ -4,6 +4,12 @@
 #define SUCCESS 0
 #define FAILURE 1
 
+#define YES 1
+#define NO 0
+
+#define APP 1
+#define LINK 2
+
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <stdio.h>
@@ -28,6 +34,7 @@ typedef struct s_config Config;
 typedef struct s_entry Entry;
 typedef struct s_windows Windows;
 typedef struct s_menu Menu;
+typedef struct s_exec Exec;
 
 struct s_config{
     char* path;
@@ -44,27 +51,30 @@ struct s_config{
     ushort spacing;
     char* font;
     char* terminal;
+    char* shell;
     char* browser;
     char* search_engine;
 };
-
+struct s_menu{
+    Display* display;
+    int screen;
+    GC gc;
+    Windows* root;
+};
+struct s_windows{
+    Window window;
+    Entry* entries;
+};
 struct s_entry{
     char* name;
     char* exec;
     Windows* child;
     Entry* next;
 };
-
-struct s_windows{
-    Window window;
-    Entry* entries;
-};
-
-struct s_menu{
-    Display* display;
-    int screen;
-    GC gc;
-    Windows* root;
+struct s_exec{
+    ushort type;
+    char* cmd;
+    bool terminal;
 };
 
 #endif

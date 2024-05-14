@@ -17,11 +17,8 @@ int main(int ac, char** av){
     sigaction(SIGQUIT, &sa, NULL);
     sigaction(SIGHUP, &sa, NULL);
 
-    Config cfg;
-    Menu menu;
-    memset(&cfg, 0, sizeof(cfg));
-    memset(&tree, 0, sizeof(tree));
-    memset(&menu, 0, sizeof(menu));
+    Config cfg = {0};
+    Menu menu = {0};
 
     menu.display = XOpenDisplay(NULL);
     if (!menu.display){
@@ -42,7 +39,7 @@ int main(int ac, char** av){
     return bye(update(&menu, &cfg), &cfg, &menu);
 }
 
-byte config(const char* const path, Config* const cfg,
+int config(const char* const path, Config* const cfg,
             Display* const display, const int screen){
     Colormap colormap = DefaultColormap(display, screen);
     FILE* file = fopen(path, "r");
@@ -52,20 +49,18 @@ byte config(const char* const path, Config* const cfg,
     }
     char* line = NULL;
     size_t len = 0;
-    while (getline(&line, &len, file) != -1){
+    ssize_t read;
+    while ((read = getline(&line, &len, file)) != -1){
         if (line[0] == '#') continue;
         char* key = strtok(line, "=");
         char* value = strtok(NULL, "=");
 
         if (!strcmp(key, "path")){
             cfg->path = get_realpath(value);
-            if (!cfg->path) return errno;
+            if (!cfg->path) break;
         }
-        else if (!strcmp(key, "x"))
-            cfg->x = atoi(value);
-
-        else if (!strcmp(key, "y"))
-            cfg->y = atoi(value);
+        else if (!strcmp(key, "x")) cfg->x = atoi(value);
+        else if (!strcmp(key, "y")) cfg->y = atoi(value);
 
         else if (!strcmp(key, "border-size"))
             cfg->border_size = atoi(value);
@@ -106,21 +101,48 @@ byte config(const char* const path, Config* const cfg,
 
         else if (!strcmp(key, "font")){
             cfg->font = strdup(value);
-            if (!cfg->font) return errno;
+            if (!cfg->font) break;
         }
         else if (!strcmp(key, "terminal")){
             cfg->terminal = strdup(value);
-            if (!cfg->terminal) return errno;
+            if (!cfg->terminal) break;
+        }
+        else if (!strcmp(key, "shell")){
+            cfg->terminal = strdup(value);
+            if (!cfg->terminal) break;
         }
         else if (!strcmp(key, "browser")){
             cfg->browser = strdup(value);
-            if (!cfg->browser) return errno;
+            if (!cfg->browser) break;
         }
         else if (!strcmp(key, "search-engine")){
             cfg->search_engine = strdup(value);
-            if (!cfg->search_engine) return errno;
+            if (!cfg->search_engine) break;
         }
         else ft_printf("Unknown key: %s\n", key);
+    }
+    fclose(file);
+    if (line) free(line);
+    return read == -1 ? SUCCESS : errno;
+}
+
+int init(Menu* const menu, Config* const cfg){
+    Stat s;
+    if (stat(cfg->path, &s) == -1){
+        perror("stat");
+        return errno;
+    }
+    if (!S_ISDIR(s.st_mode)){
+        fprintf(stderr, "%s is not a directory\n", path);
+        return FAILURE;
+    }
+    menu->root = create_window(cfg->path, menu, cfg, 0, 0);
+    if (!menu->root) return errno;
+
+    menu->gc = XCreateGC(menu->display, menu->root->window, 0, NULL);
+    if (!menu->gc){
+        perror("XCreateGC");
+        return errno;
     }
     return SUCCESS;
 }

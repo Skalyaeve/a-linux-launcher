@@ -13,5 +13,6 @@ spacing=8
 #font=10x20
 font=-misc-terminess nerd font propo-medium-r-normal--20-0-0-0-p-0-iso10646-1
 terminal=x-terminal-emulator
+shell=bash
 browser=firefox-esr --new_tab
 search-engine=google.com/search?q=
