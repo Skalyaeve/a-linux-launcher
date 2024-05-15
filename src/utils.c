@@ -11,6 +11,14 @@ char* get_realpath(const char* const path){
         snprintf(new_path, len, "%s%s", home, path + 1);
         return new_path;
     }
-    else if (path[0] != '/') return realpath(path, NULL);
-    return strdup(path);
+    return (path[0] != '/') ? realpath(path, NULL) : strdup(path);
+}
+
+void free_intlist(Intlist* const list){
+    Intlist* ptr = list;
+    while (ptr){
+        ptr = list->next;
+        free(list);
+        list = ptr;
+    }
 }

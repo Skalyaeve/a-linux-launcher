@@ -12,7 +12,7 @@ y-padding=16
 spacing=8
 #font=10x20
 font=-misc-terminess nerd font propo-medium-r-normal--20-0-0-0-p-0-iso10646-1
-terminal=x-terminal-emulator
-shell=bash
-browser=firefox-esr --new_tab
+terminal=x-terminal-emulator -e
+shell=bash -c
+browser=firefox-esr --new-tab
 search-engine=google.com/search?q=

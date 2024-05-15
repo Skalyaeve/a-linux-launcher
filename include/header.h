@@ -35,6 +35,7 @@ typedef struct s_entry Entry;
 typedef struct s_windows Windows;
 typedef struct s_menu Menu;
 typedef struct s_exec Exec;
+typedef struct s_intlist Intlist;
 
 struct s_config{
     char* path;
@@ -75,6 +76,10 @@ struct s_exec{
     ushort type;
     char* cmd;
     bool terminal;
+};
+struct s_intlist{
+    int value;
+    Intlist* next;
 };
 
 #endif

@@ -14,9 +14,17 @@ Windows* create_window(const char* const path, Menu* const menu,
     memset(window, 0, sizeof(Windows));
     Entry** ptr = &window->entries;
 
+    Intlist* const childs = malloc(sizeof(Intlist));
+    if (!childs){
+        free(window);
+        perror("malloc");
+        return NULL;
+    }
+    memset(childs, 0, sizeof(Intlist));
+
     DIR* dir = opendir(path);
     if (!dir){
-        free_window(window);
+        free(window);
         perror("opendir");
         return NULL;
     }
@@ -27,39 +35,35 @@ Windows* create_window(const char* const path, Menu* const menu,
     while ((entry = readdir(dir))){
         *ptr = malloc(sizeof(Entry));
         if (!*ptr){
-            free_window(window);
             perror("malloc");
-            return NULL;
+            break;
         }
         memset(*ptr, 0, sizeof(Entry));
         if (entry->d_type == DT_DIR){
 
             (*ptr)->name = strdup(entry->d_name);
             if (!(*ptr)->name){
-                free_window(window);
-                return NULL;
+                perror("strdup");
+                break;
             }
-            (*ptr)->window = create_window(entry->d_name, menu, cfg);
-            if (!(*ptr)->window){
-                free_window(window);
-                return NULL;
-            }
+            //(*ptr)->window = create_window(entry->d_name, menu, cfg);
+            //if (!(*ptr)->window) break;
         }
-        else if (new_app(entry->d_name, *ptr, cfg) != SUCCESS){
-            free_window(window);
-            return NULL;
-        }
+        else if (new_app(entry->d_name, *ptr, cfg) != SUCCESS) break;
+
         len = strlen((*ptr)->name);
         if (len > largest) largest = len;
         count++;
         ptr = &(*ptr)->next;
     }
-    if (!count){
+    closedir(dir);
+    if (entry || !count)
+        free_intlist(childs);
         free_window(window);
         return NULL;
     }
-    window->window = new_window(
-        menu, cfg, largest, count, x_offset, y_offset);
+    window->window = new_window(menu, cfg, largest,
+                                count, x_offset, y_offset);
     if (!window->window){
         free_window(window);
         return NULL;
@@ -143,6 +147,41 @@ int new_app(const char* const path, Entry* const entry,
 }
 
 char* fill_exec(Exec exec, Config* const cfg){
-    char* cmd = NULL;
+    char* cmd = NULL;;
+    char* shell = strdup(cfg->shell);
+    if (!shell){
+        perror("strdup");
+        return NULL;
+    }
+    char* ptr;
+    size_t len;
+    switch (exec.type){
+        case APPLICATION:
+            len = strlen(cfg->terminal) + strlen(shell)
+                + strlen(exec.cmd) + 5;
+            if (exec.terminal){
+                ptr = strtok(shell, " ")
+                len += 7 + strlen(ptr);
+            }
+            cmd = malloc(len);
+            if (!cmd){
+                perror("malloc");
+                break;
+            }
+            if (exec.terminal)
+                snprintf(cmd, len, "%s %s '%s; exec %s'",
+                         cfg->terminal, shell, exec.cmd, ptr);
+            else snprintf(cmd, len, "%s %s '%s'",
+                          cfg->terminal, shell, exec.cmd);
+        case LINK:
+            len = strlen(cfg->browser) + strlen(exec.cmd) + 4;
+            cmd = malloc(len);
+            if (!cmd){
+                perror("malloc");
+                break;
+            }
+            snprintf(cmd, len, "%s '%s'", cfg->browser, exec.cmd);
+    }
+    free(shell);
     return cmd;
 }
