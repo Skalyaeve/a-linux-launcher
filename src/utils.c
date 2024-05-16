@@ -5,7 +5,7 @@ char* get_realpath(const char* const path){
         const char* const home = getenv("HOME");
         if (!home) return NULL;
 
-        size_t len = strlen(home) + strlen(path);
+        const size_t len = strlen(home) + strlen(path);
         char* const new_path = malloc(len);
         if (!new_path) return NULL;
         snprintf(new_path, len, "%s%s", home, path + 1);
@@ -14,7 +14,7 @@ char* get_realpath(const char* const path){
     return (path[0] != '/') ? realpath(path, NULL) : strdup(path);
 }
 
-void free_intlist(Intlist* const list){
+void free_intlist(Intlist* list){
     Intlist* ptr = list;
     while (ptr){
         ptr = list->next;

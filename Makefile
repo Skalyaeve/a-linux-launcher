@@ -1,7 +1,7 @@
 NAME=launcher
 
 CC=gcc
-CFLAGS=-Wall -Wextra -Werror
+CFLAGS=-Wall -Wextra -Werror -g
 LDFLAGS=-lX11
 
 INCLUDE_DIR=include

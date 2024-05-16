@@ -1,17 +1,21 @@
-path=~/.local/share/applications
 x=20
 y=20
+x-padding=16
+y-padding=16
+spacing=8
 border-size=1
-border-color=#242424
+
+font-size=20
+font=-misc-terminess nerd font propo-medium-r-normal--20-0-0-0-p-0-iso10646-1
+# font=10x20
+
 bg-color=#121212
 fg-color=#ffffff
 focus-bg-color=#3f2a54
 focus-fg-color=#ffffff
-x-padding=16
-y-padding=16
-spacing=8
-#font=10x20
-font=-misc-terminess nerd font propo-medium-r-normal--20-0-0-0-p-0-iso10646-1
+border-color=#242424
+
+path=~/.local/share/applications
 terminal=x-terminal-emulator -e
 shell=bash -c
 browser=firefox-esr --new-tab

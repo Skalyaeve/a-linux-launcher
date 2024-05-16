@@ -18,6 +18,8 @@
 #include <unistd.h>
 #include <errno.h>
 #include <signal.h>
+#include <dirent.h>
+#include <sys/stat.h>
 
 typedef char bool;
 typedef char byte;
@@ -50,6 +52,7 @@ struct s_config{
     ushort x_padding;
     ushort y_padding;
     ushort spacing;
+    ushort font_size;
     char* font;
     char* terminal;
     char* shell;
@@ -63,6 +66,7 @@ struct s_menu{
     Windows* root;
 };
 struct s_windows{
+    bool visible;
     Window window;
     Entry* entries;
 };
@@ -81,5 +85,26 @@ struct s_intlist{
     int value;
     Intlist* next;
 };
+
+void sig_hdl(const int sig);
+int config(const char* const path, Config* const cfg,
+            Display* const display, const int screen);
+int init(Menu* const menu, Config* const cfg);
+byte setprops(Display* const display, Window* window);
+byte bye(const int code, Config* const cfg, Menu* const menu);
+
+Windows* create_window(const char* const path,
+                       Menu* const menu, Config* const cfg,
+                       size_t x_offset, size_t y_offset);
+void free_window(Windows* const window);
+int new_app(const char* const path, Entry* const entry,
+            Config* const cfg);
+char* fill_exec(Exec* exec, Config* const cfg);
+
+byte update(Menu* const menu, Config* const cfg);
+void draw(Menu* const menu);
+
+char* get_realpath(const char* const path);
+void free_intlist(Intlist* list);
 
 #endif
