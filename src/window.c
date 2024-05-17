@@ -92,11 +92,12 @@ Windows* create_window(const char* const path,
         }
         free_intlist(childs);
     }
+    largest *= cfg->font_size / 2;
     window->window = XCreateSimpleWindow(
         menu->display, RootWindow(menu->display, menu->screen),
         cfg->x + x_offset, cfg->y + y_offset,
         largest + cfg->x_padding * 2, cfg->font_size * count
-        + cfg->spacing * (count - 1) + cfg->x_padding * 2,
+        + cfg->spacing * (count - 1) + cfg->y_padding * 2,
         cfg->border_size, cfg->border_color.pixel,
         cfg->bg_color.pixel);
     if (!window->window){

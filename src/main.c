@@ -37,6 +37,7 @@ int main(int ac, char** av){
     if (stop) return bye(SUCCESS, &cfg, &menu);
 
     menu.root->visible = YES;
+    XMapWindow(menu.display, menu.root->window);
     return bye(update(&menu, &cfg), &cfg, &menu);
 }
 

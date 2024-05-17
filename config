@@ -1,9 +1,9 @@
-x=20
-y=20
-x-padding=16
-y-padding=16
-spacing=8
-border-size=1
+x=-2
+y=4
+x-padding=24
+y-padding=20
+spacing=20
+border-size=4
 
 font-size=20
 font=-misc-terminess nerd font propo-medium-r-normal--20-0-0-0-p-0-iso10646-1

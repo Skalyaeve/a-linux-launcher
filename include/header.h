@@ -106,7 +106,7 @@ int new_app(const char* const path, Entry* const entry,
 char* fill_exec(Exec* exec, Config* const cfg);
 
 byte update(Menu* const menu, Config* const cfg);
-void draw(Menu* const menu);
+void draw(Config* const cfg, Menu* const menu, Windows* window);
 
 char* get_realpath(const char* const path);
 void free_intlist(Intlist* list);
