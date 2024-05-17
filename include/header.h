@@ -96,6 +96,10 @@ byte bye(const int code, Config* const cfg, Menu* const menu);
 Windows* create_window(const char* const path,
                        Menu* const menu, Config* const cfg,
                        size_t x_offset, size_t y_offset);
+bool create_childs(Entry** entries, Intlist** listptr,
+                   const char* const path, const size_t largest,
+                   size_t x_offset, size_t y_offset,
+                   Menu* const menu, Config* const cfg);
 void free_window(Windows* const window);
 int new_app(const char* const path, Entry* const entry,
             Config* const cfg);

@@ -29,6 +29,7 @@ Windows* create_window(const char* const path,
     Dirent* entry;
     char* rpath = NULL;
     Stat path_stat;
+    printf("\nnew window: %s\n", path);
     while ((entry = readdir(dir))){
         if (!strcmp(entry->d_name, ".")
             || !strcmp(entry->d_name, ".."))
@@ -63,14 +64,12 @@ Windows* create_window(const char* const path,
             (*listptr)->value = count;
             (*listptr)->next = NULL;
             listptr = &(*listptr)->next;
-            len = strlen(strstr((*entries)->name, path)
-                         + strlen(path) + 1);
         }
-        else{
-            if (new_app(rpath, *entries, cfg) != SUCCESS)
-                break;
-            len = strlen((*entries)->name);
-        }
+        else if (new_app(rpath, *entries, cfg) != SUCCESS)
+            break;
+
+        printf("new entry: %s\n", (*entries)->name);
+        len = strlen((*entries)->name);
         if (len > largest) largest = len;
         count++;
         entries = &(*entries)->next;
@@ -83,10 +82,29 @@ Windows* create_window(const char* const path,
         return NULL;
     }
     if (childs){
-        if (!create_childs(&window->entries, &childs, path,
-                           largest, x_offset, y_offset, menu, cfg)){
-            free_window(window);
+        size_t index;
+        size_t offset = 0;
+        entries = &window->entries;
+        listptr = &childs;
+        x_offset += largest + cfg->x_padding + cfg->border_size;
+        while (*listptr){
+            index = (*listptr)->value;
+            y_offset = cfg->font_size * index
+                + cfg->spacing * index + cfg->y_padding
+                + cfg->border_size;
+
+            while (offset < index){
+                entries = &(*entries)->next;
+                offset++;
+            }
+            (*entries)->child = create_window(
+                (*entries)->name, menu, cfg, x_offset, y_offset);
+            if (!(*entries)->child) break;
+            listptr = &(*listptr)->next;
+        }
+        if (*listptr){
             free_intlist(childs);
+            free_window(window);
             return NULL;
         }
         free_intlist(childs);
@@ -98,49 +116,11 @@ Windows* create_window(const char* const path,
         + cfg->spacing * (count - 1) + cfg->x_padding * 2,
         cfg->border_size, cfg->border_color.pixel,
         cfg->bg_color.pixel);
-    printf("\nNew window from %s:\n", path);
-    Entry* ptr = window->entries;
-    while (ptr){
-        printf("%s\n", ptr->name);
-        ptr = ptr->next;
-    }
     if (!window->window){
         free_window(window);
         window = NULL;
     }
     return window;
-}
-
-bool create_childs(Entry** entries, Intlist** listptr,
-                   const char* const path, const size_t largest,
-                   size_t x_offset, size_t y_offset,
-                   Menu* const menu, Config* const cfg){
-    size_t index;
-    size_t offset = 0;
-    char* ptr;
-    x_offset += largest + cfg->x_padding + cfg->border_size;
-    while (*listptr){
-        index = (*listptr)->value;
-        y_offset = cfg->font_size * index
-            + cfg->spacing * index + cfg->y_padding
-            + cfg->border_size;
-
-        while (offset < index){
-            entries = &(*entries)->next;
-            offset++;
-        }
-        printf("Creating childs for %s\n", (*entries)->name);
-        (*entries)->child = create_window(
-            (*entries)->name, menu, cfg, x_offset, y_offset);
-        if (!(*entries)->child) break;
-        ptr = strdup(strstr((*entries)->name, path)
-                     + strlen(path) + 1);
-        if (!ptr) break;
-        free((*entries)->name);
-        (*entries)->name = ptr;
-        listptr = &(*listptr)->next;
-    }
-    return *listptr ? FAILURE : SUCCESS;
 }
 
 void free_window(Windows* const window){
