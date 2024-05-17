@@ -22,8 +22,4 @@ byte update(Menu* const menu, Config* const cfg){
 }
 
 void draw(Menu* const menu){
-    XClearWindow(menu->display, menu->root->window);
-    XDrawString(menu->display, menu->root->window, menu->gc,
-                10, 10, "Hello, World!", 12);
-    XFlush(menu->display);
 }
