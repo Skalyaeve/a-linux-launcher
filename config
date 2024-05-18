@@ -1,17 +1,19 @@
 x=-2
 y=4
-x-padding=24
-y-padding=20
-spacing=20
+x-padding=14
+y-padding=18
+line-margin=20
+window-margin=-4
 border-size=4
 
 font-size=20
 font=-misc-terminess nerd font propo-medium-r-normal--20-0-0-0-p-0-iso10646-1
 # font=10x20
+# font --> $ xlsfonts
 
 bg-color=#121212
-fg-color=#ffffff
-focus-bg-color=#3f2a54
+fg-color=#aaaaaa
+focus-bg-color=#331a33
 focus-fg-color=#ffffff
 border-color=#242424
 

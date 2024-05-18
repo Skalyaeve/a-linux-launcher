@@ -64,7 +64,7 @@ Windows* create_window(const char* const path,
             (*listptr)->next = NULL;
             listptr = &(*listptr)->next;
             len = strlen(strstr((*entries)->name, path)
-                         + strlen(path) + 1);
+                         + strlen(path) + 1) + 4;
         }
         else{
             if (new_app(rpath, *entries, cfg) != SUCCESS)
@@ -82,10 +82,10 @@ Windows* create_window(const char* const path,
         if (childs) free_intlist(childs);
         return NULL;
     }
+    link_entries(window->entries);
     if (childs){
-        if (create_childs(
-            window->entries, childs, path, largest,
-            x_offset, y_offset, menu, cfg) != SUCCESS){
+        if (create_childs(window, childs, path, largest,
+                          x_offset, y_offset, menu, cfg) != SUCCESS){
             free_window(window);
             free_intlist(childs);
             return NULL;
@@ -93,13 +93,15 @@ Windows* create_window(const char* const path,
         free_intlist(childs);
     }
     largest *= cfg->font_size / 2;
+    window->x = cfg->x + x_offset;
+    window->y = cfg->y + y_offset;
+    window->largest = largest;
     window->window = XCreateSimpleWindow(
         menu->display, RootWindow(menu->display, menu->screen),
-        cfg->x + x_offset, cfg->y + y_offset,
-        largest + cfg->x_padding * 2, cfg->font_size * count
-        + cfg->spacing * (count - 1) + cfg->y_padding * 2,
-        cfg->border_size, cfg->border_color.pixel,
-        cfg->bg_color.pixel);
+        window->x, window->y, largest + cfg->x_padding * 2,
+        cfg->font_size * count + cfg->line_margin * (count - 1)
+        + cfg->y_padding * 2, cfg->border_size,
+        cfg->border_color.pixel, cfg->bg_color.pixel);
     if (!window->window){
         free_window(window);
         window = NULL;
@@ -107,18 +109,26 @@ Windows* create_window(const char* const path,
     return window;
 }
 
-bool create_childs(Entry* entries, Intlist* listptr,
+void link_entries(Entry* entries){
+    Entry* prev = NULL;
+    while (entries){
+        entries->prev = prev;
+        prev = entries;
+        entries = entries->next;
+    }
+}
+
+bool create_childs(Windows* const window, Intlist* listptr,
                    const char* const path, const size_t largest,
                    size_t x_offset, size_t y_offset,
                    Menu* const menu, Config* const cfg){
     int offset = 0;
     char* ptr;
-    x_offset += largest + cfg->x_padding + cfg->border_size;
+    char* substr;
+    Entry* entries = window->entries;
+    x_offset += largest * cfg->font_size / 2 + cfg->window_margin
+        + cfg->x_padding * 2 + cfg->border_size * 2;
     while (listptr){
-        y_offset = cfg->font_size * listptr->value
-            + cfg->spacing * listptr->value + cfg->y_padding
-            + cfg->border_size;
-
         while (offset < listptr->value){
             entries = entries->next;
             offset++;
@@ -126,15 +136,22 @@ bool create_childs(Entry* entries, Intlist* listptr,
         entries->child = create_window(
             entries->name, menu, cfg, x_offset, y_offset);
         if (!entries->child) break;
+        entries->child->parent = window;
 
-        ptr = strdup(strstr(entries->name, path) + strlen(path) + 1);
+        substr = strstr(entries->name, path) + strlen(path) + 1;
+        ptr = malloc(largest + 1);
         if (!ptr){
             perror("strdup");
             break;
         }
+        memcpy(ptr, substr, strlen(substr));
+        memset(ptr + strlen(substr), ' ', largest - strlen(substr));
+        ptr[largest - 1] = '>';
+        ptr[largest] = '\0';
         free(entries->name);
         entries->name = ptr;
         listptr = listptr->next;
+        y_offset += cfg->font_size + cfg->line_margin;
     }
     return listptr ? FAILURE : SUCCESS;
 }
@@ -218,7 +235,7 @@ int new_app(const char* const path, Entry* const entry,
     return SUCCESS;
 }
 
-char* fill_exec(Exec* exec, Config* const cfg){
+char* fill_exec(Exec* const exec, Config* const cfg){
     char* cmd = NULL;;
     char* shell = strdup(cfg->shell);
     if (!shell){

@@ -12,6 +12,7 @@
 
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
+#include <X11/keysym.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -51,7 +52,8 @@ struct s_config{
     XColor focus_fg_color;
     ushort x_padding;
     ushort y_padding;
-    ushort spacing;
+    ushort line_margin;
+    ushort window_margin;
     ushort font_size;
     char* font;
     char* terminal;
@@ -64,17 +66,24 @@ struct s_menu{
     int screen;
     GC gc;
     Windows* root;
+    Windows* focus;
 };
 struct s_windows{
+    ushort x;
+    ushort y;
     bool visible;
     Window window;
+    size_t largest;
     Entry* entries;
+    Entry* selected;
+    Windows* parent;
 };
 struct s_entry{
     char* name;
     char* exec;
     Windows* child;
     Entry* next;
+    Entry* prev;
 };
 struct s_exec{
     ushort type;
@@ -86,28 +95,40 @@ struct s_intlist{
     Intlist* next;
 };
 
+//================================ MAIN
 void sig_hdl(const int sig);
 int config(const char* const path, Config* const cfg,
             Display* const display, const int screen);
 int init(Menu* const menu, Config* const cfg);
-byte setprops(Display* const display, Window* window);
+byte setwindows(Display* const display, Windows* const ptr);
+byte setprops(Display* const display, Window* const window);
 byte bye(const int code, Config* const cfg, Menu* const menu);
 
+//================================ WINDOW
 Windows* create_window(const char* const path,
                        Menu* const menu, Config* const cfg,
                        size_t x_offset, size_t y_offset);
-bool create_childs(Entry* entries, Intlist* listptr,
+void link_entries(Entry* entries);
+bool create_childs(Windows* const window, Intlist* listptr,
                    const char* const path, const size_t largest,
                    size_t x_offset, size_t y_offset,
                    Menu* const menu, Config* const cfg);
 void free_window(Windows* const window);
 int new_app(const char* const path, Entry* const entry,
             Config* const cfg);
-char* fill_exec(Exec* exec, Config* const cfg);
+char* fill_exec(Exec* const exec, Config* const cfg);
 
+//================================ UPDATE
 byte update(Menu* const menu, Config* const cfg);
-void draw(Config* const cfg, Menu* const menu, Windows* window);
+void draw(Config* const cfg, Menu* const menu,
+          Windows* const window);
+void change_selected(Menu* const menu, Config* const cfg,
+                     const KeySym keysym);
+void change_focus(Menu* const menu, Config* const cfg,
+                  const KeySym keysym);
+void spawn_child(Menu* const menu);
 
+//================================ UTILS
 char* get_realpath(const char* const path);
 void free_intlist(Intlist* list);
 

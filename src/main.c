@@ -37,6 +37,7 @@ int main(int ac, char** av){
     if (stop) return bye(SUCCESS, &cfg, &menu);
 
     menu.root->visible = YES;
+    menu.focus = menu.root;
     XMapWindow(menu.display, menu.root->window);
     return bye(update(&menu, &cfg), &cfg, &menu);
 }
@@ -105,8 +106,11 @@ int config(const char* const path, Config* const cfg,
         else if (!strcmp(key, "font-size"))
             cfg->font_size = atoi(value);
 
-        else if (!strcmp(key, "spacing"))
-            cfg->spacing = atoi(value);
+        else if (!strcmp(key, "line-margin"))
+            cfg->line_margin = atoi(value);
+
+        else if (!strcmp(key, "window-margin"))
+            cfg->window_margin = atoi(value);
 
         else if (!strcmp(key, "font")){
             cfg->font = strdup(value);
@@ -174,7 +178,6 @@ int init(Menu* const menu, Config* const cfg){
         perror("XCreateGC");
         return errno;
     }
-    XSetForeground(menu->display, menu->gc, cfg->fg_color.pixel);
     XFontStruct* const font = XLoadQueryFont(menu->display,
                                              cfg->font);
     if (!font){
@@ -183,14 +186,25 @@ int init(Menu* const menu, Config* const cfg){
     }
     XSetFont(menu->display, menu->gc, font->fid);
     XFreeFont(menu->display, font);
-    if (setprops(menu->display, &menu->root->window) == FAILURE)
+    if (setwindows(menu->display, menu->root) == FAILURE)
         return errno;
-    XSelectInput(menu->display, menu->root->window,
-                 ExposureMask | KeyPressMask);
     return SUCCESS;
 }
 
-byte setprops(Display* const display, Window* window){
+byte setwindows(Display* const display, Windows* const ptr){
+    if (setprops(display, &ptr->window) == FAILURE) return FAILURE;
+    XSelectInput(display, ptr->window, ExposureMask | KeyPressMask);
+    Entry* entry = ptr->entries;
+    while (entry){
+        if (entry->child)
+            if (setwindows(display, entry->child) == FAILURE)
+                return FAILURE;
+        entry = entry->next;
+    }
+    return SUCCESS;
+}
+
+byte setprops(Display* const display, Window* const window){
     Atom window_type = XInternAtom(
         display, "_NET_WM_WINDOW_TYPE", False);
     if (!window_type){
