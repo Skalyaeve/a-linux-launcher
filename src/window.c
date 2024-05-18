@@ -249,7 +249,7 @@ char* fill_exec(Exec* const exec, Config* const cfg){
             len = strlen(exec->cmd) + 1;
             if (exec->terminal){
                 ptr = strtok(shell, " ");
-                len += strlen(cfg->terminal) + strlen(shell)
+                len += strlen(cfg->terminal) + strlen(cfg->shell)
                     + strlen(ptr) + 11;
             }
             cmd = malloc(len);
@@ -259,7 +259,7 @@ char* fill_exec(Exec* const exec, Config* const cfg){
             }
             if (exec->terminal)
                 snprintf(cmd, len, "%s %s '%s; exec %s'",
-                         cfg->terminal, shell, exec->cmd, ptr);
+                         cfg->terminal, cfg->shell, exec->cmd, ptr);
             else snprintf(cmd, len, "%s", exec->cmd);
             break;
         case LINK:

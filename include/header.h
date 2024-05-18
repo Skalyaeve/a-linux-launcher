@@ -127,6 +127,7 @@ void change_selected(Menu* const menu, Config* const cfg,
 void change_focus(Menu* const menu, Config* const cfg,
                   const KeySym keysym);
 void spawn_child(Menu* const menu);
+void exec(char* const cmd, Config* const cfg, Menu* const menu);
 
 //================================ UTILS
 char* get_realpath(const char* const path);

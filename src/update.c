@@ -20,7 +20,8 @@ byte update(Menu* const menu, Config* const cfg){
                         change_focus(menu, cfg, keysym);
                     else if (keysym == XK_Return){
                         if (menu->focus->selected->exec)
-                            return exec(menu->focus->selected->name);
+                            exec(menu->focus->selected->exec,
+                                 cfg, menu);
                     }
                     else if (keysym == XK_Escape) stop = True;
                     break;
@@ -131,4 +132,26 @@ void spawn_child(Menu* const menu){
     }while (attr.map_state != IsViewable);
     XSetInputFocus(menu->display, menu->focus->window,
                    RevertToParent, CurrentTime);
+}
+
+void exec(char* const cmd, Config* const cfg, Menu* const menu){
+    char* const tmp = strdup(cmd);
+    if (!tmp){
+        perror("strdup");
+        exit(bye(errno, cfg, menu));
+    }
+    bye(SUCCESS, cfg, menu);
+    pid_t pid = fork();
+    if (pid == -1){
+        free(tmp);
+        perror("fork");
+        exit(errno);
+    }
+    if (!pid){
+        system(tmp);
+        free(tmp);
+        exit(SUCCESS);
+    }
+    free(tmp);
+    exit(SUCCESS);
 }

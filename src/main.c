@@ -253,8 +253,8 @@ byte bye(const int code, Config* const cfg, Menu* const menu){
     if (cfg->browser) free(cfg->browser);
     if (cfg->search_engine) free(cfg->search_engine);
 
+    if (menu->root) free_window(menu->root);
     if (menu->gc) XFreeGC(menu->display, menu->gc);
     if (menu->display) XCloseDisplay(menu->display);
-    if (menu->root) free_window(menu->root);
     return code;
 }
