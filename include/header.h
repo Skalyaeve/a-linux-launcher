@@ -38,7 +38,8 @@ typedef struct s_entry Entry;
 typedef struct s_windows Windows;
 typedef struct s_menu Menu;
 typedef struct s_exec Exec;
-typedef struct s_intlist Intlist;
+typedef struct s_nbrlist Nbrlist;
+typedef struct s_strlist Strlist;
 
 struct s_config{
     char* path;
@@ -81,6 +82,7 @@ struct s_windows{
 struct s_entry{
     char* name;
     char* exec;
+    bool have_child;
     Windows* child;
     Entry* next;
     Entry* prev;
@@ -90,9 +92,9 @@ struct s_exec{
     char* cmd;
     bool terminal;
 };
-struct s_intlist{
-    int value;
-    Intlist* next;
+struct s_strlist{
+    char* str;
+    Strlist* next;
 };
 
 //================================ MAIN
@@ -109,14 +111,17 @@ Windows* create_window(const char* const path,
                        Menu* const menu, Config* const cfg,
                        size_t x_offset, size_t y_offset);
 void link_entries(Entry* entries);
-bool create_childs(Windows* const window, Intlist* listptr,
-                   const char* const path, const size_t largest,
-                   size_t x_offset, size_t y_offset,
-                   Menu* const menu, Config* const cfg);
+bool create_childs(Windows* const window, const char* const path,
+                   const size_t largest, size_t x_offset,
+                   size_t y_offset, Menu* const menu,
+                   Config* const cfg);
 void free_window(Windows* const window);
 int new_app(const char* const path, Entry* const entry,
             Config* const cfg);
 char* fill_exec(Exec* const exec, Config* const cfg);
+Strlist* get_order(const char* const path);
+byte order_entries(Entry* entries, Strlist* order,
+                   const char* const path);
 
 //================================ UPDATE
 byte update(Menu* const menu, Config* const cfg);
@@ -131,6 +136,7 @@ void exec(char* const cmd, Config* const cfg, Menu* const menu);
 
 //================================ UTILS
 char* get_realpath(const char* const path);
-void free_intlist(Intlist* list);
+void free_nbrlist(Nbrlist* list);
+void free_strlist(Strlist* list);
 
 #endif

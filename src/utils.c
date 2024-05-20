@@ -14,10 +14,11 @@ char* get_realpath(const char* const path){
     return (path[0] != '/') ? realpath(path, NULL) : strdup(path);
 }
 
-void free_intlist(Intlist* list){
-    Intlist* ptr = list;
+void free_strlist(Strlist* list){
+    Strlist* ptr = list;
     while (ptr){
         ptr = list->next;
+        free(list->str);
         free(list);
         list = ptr;
     }

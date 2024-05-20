@@ -14,11 +14,9 @@ Windows* create_window(const char* const path,
     memset(window, 0, sizeof(Windows));
     Entry** entries = &window->entries;
 
-    Intlist* childs = NULL;
-    Intlist** listptr = &childs;
-
     DIR* const dir = opendir(path);
     if (!dir){
+        printf("Could not open %s\n", path);
         free(window);
         perror("opendir");
         return NULL;
@@ -28,6 +26,7 @@ Windows* create_window(const char* const path,
     size_t largest = 0;
     Dirent* entry;
     char* rpath = NULL;
+    Strlist* order = NULL;
     Stat path_stat;
     while ((entry = readdir(dir))){
         if (!strcmp(entry->d_name, ".")
@@ -55,20 +54,19 @@ Windows* create_window(const char* const path,
                 perror("strdup");
                 break;
             }
-            *listptr = malloc(sizeof(Intlist));
-            if (!*listptr){
-                perror("malloc");
-                break;
-            }
-            (*listptr)->value = count;
-            (*listptr)->next = NULL;
-            listptr = &(*listptr)->next;
+            (*entries)->have_child = YES;
             len = strlen(strstr((*entries)->name, path)
                          + strlen(path) + 1) + 4;
         }
         else{
-            if (new_app(rpath, *entries, cfg) != SUCCESS)
-                break;
+            if (!strcmp(entry->d_name, ".ord")){
+                free(*entries);
+                *entries = NULL;
+                order = get_order(rpath);
+                if (!order) break;
+                continue;
+            }
+            if (new_app(rpath, *entries, cfg) != SUCCESS) break;
             len = strlen((*entries)->name);
         }
         if (len > largest) largest = len;
@@ -79,18 +77,23 @@ Windows* create_window(const char* const path,
     closedir(dir);
     if (entry || !count){
         free_window(window);
-        if (childs) free_intlist(childs);
+        if (order) free_strlist(order);
         return NULL;
     }
     link_entries(window->entries);
-    if (childs){
-        if (create_childs(window, childs, path, largest,
-                          x_offset, y_offset, menu, cfg) != SUCCESS){
+    if (order){
+        if (order_entries(window->entries, order, path)
+            != SUCCESS){
+            free_strlist(order);
             free_window(window);
-            free_intlist(childs);
             return NULL;
         }
-        free_intlist(childs);
+        free_strlist(order);
+    }
+    if (create_childs(window, path, largest,
+                      x_offset, y_offset, menu, cfg) != SUCCESS){
+        free_window(window);
+        return NULL;
     }
     largest *= cfg->font_size / 2;
     window->x = cfg->x + x_offset;
@@ -118,20 +121,19 @@ void link_entries(Entry* entries){
     }
 }
 
-bool create_childs(Windows* const window, Intlist* listptr,
-                   const char* const path, const size_t largest,
-                   size_t x_offset, size_t y_offset,
-                   Menu* const menu, Config* const cfg){
-    int offset = 0;
+bool create_childs(Windows* const window, const char* const path,
+                   const size_t largest, size_t x_offset,
+                   size_t y_offset, Menu* const menu,
+                   Config* const cfg){
     char* ptr;
     char* substr;
     Entry* entries = window->entries;
     x_offset += largest * cfg->font_size / 2 + cfg->window_margin
         + cfg->x_padding * 2 + cfg->border_size * 2;
-    while (listptr){
-        while (offset < listptr->value){
+    while (entries){
+        if (!entries->have_child){
             entries = entries->next;
-            offset++;
+            continue;
         }
         entries->child = create_window(
             entries->name, menu, cfg, x_offset, y_offset);
@@ -150,10 +152,10 @@ bool create_childs(Windows* const window, Intlist* listptr,
         ptr[largest] = '\0';
         free(entries->name);
         entries->name = ptr;
-        listptr = listptr->next;
         y_offset += cfg->font_size + cfg->line_margin;
+        entries = entries->next;
     }
-    return listptr ? FAILURE : SUCCESS;
+    return SUCCESS;
 }
 
 void free_window(Windows* const window){
@@ -185,15 +187,17 @@ int new_app(const char* const path, Entry* const entry,
     char* value;
     while ((read = getline(&line, &len, file)) != -1){
         if (line[0] == '\n' || line[0] == '[') continue;
+        if (!strstr(line, "=")){
+            fprintf(stderr, "Invalid line in %s: %s", path, line);
+            continue;
+        }
         key = strtok(line, "=");
         value = strtok(NULL, "=");
         value[strlen(value) - 1] = '\0';
 
         if (!strcmp(key, "Type")){
-            if (!strcmp(value, "Application"))
-                exec.type = APP;
-            else if (!strcmp(value, "Link"))
-                exec.type = LINK;
+            if (!strcmp(value, "Application")) exec.type = APP;
+            else if (!strcmp(value, "Link")) exec.type = LINK;
             else fprintf(stderr,
                          "Invalid value for Type: %s", value);
         }
@@ -274,4 +278,70 @@ char* fill_exec(Exec* const exec, Config* const cfg){
     }
     free(shell);
     return cmd;
+}
+
+Strlist* get_order(const char* const path){
+    FILE* const file = fopen(path, "r");
+    if (!file){
+        perror("fopen");
+        return NULL;
+    }
+    ssize_t read;
+    char* line = NULL;
+    size_t len = 0;
+    Strlist* order = NULL;
+    Strlist** listptr = &order;
+    while ((read = getline(&line, &len, file)) != -1){
+        if (line[0] == '\n' || line[0] == '#') continue;
+        *listptr = malloc(sizeof(Strlist));
+        if (!*listptr){
+            perror("malloc");
+            break;
+        }
+        (*listptr)->str = strdup(line);
+        if (!(*listptr)->str){
+            perror("strdup");
+            break;
+        }
+        (*listptr)->str[strlen((*listptr)->str) - 1] = '\0';
+        (*listptr)->next = NULL;
+        listptr = &(*listptr)->next;
+    }
+    fclose(file);
+    if (line) free(line);
+    if (read != -1) free_strlist(order);
+    return read == -1 ? order : NULL;
+}
+
+byte order_entries(Entry* entries, Strlist* order,
+                   const char* const path){
+    Entry* ptr;
+    Entry tmp = {0};
+    char* str;
+    while (order){
+        ptr = entries;
+        while (ptr){
+            str = strdup(ptr->name + strlen(path) + 1);
+            if (!str){
+                perror("strdup");
+                return FAILURE;
+            }
+            if (!strcmp(str, order->str)){
+                free(str);
+                memcpy(&tmp, ptr, sizeof(Entry));
+
+                ptr->name = entries->name;
+                ptr->exec = entries->exec;
+                entries->name = tmp.name;
+                entries->exec = tmp.exec;
+
+                entries = entries->next;
+                break;
+            }
+            ptr = ptr->next;
+            free(str);
+        }
+        order = order->next;
+    }
+    return SUCCESS;
 }

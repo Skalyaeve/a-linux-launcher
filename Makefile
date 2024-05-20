@@ -35,4 +35,15 @@ fclean: clean
 
 re: fclean all
 
-.PHONY: all clean fclean re
+install:
+	@mkdir -p $(HOME)/.config/$(NAME)
+	@cp config $(HOME)/.config/$(NAME)/config
+	@ln -sf $(PWD)/$(NAME) $(HOME)/.local/bin/$(NAME)
+	@echo $(NAME) installed
+
+uninstall:
+	@rm -rf $(HOME)/.config/$(NAME)
+	@rm -f $(HOME)/.local/bin/$(NAME)
+	@echo $(NAME) uninstalled
+
+.PHONY: all clean fclean re install uninstall
