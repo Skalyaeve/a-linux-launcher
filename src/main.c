@@ -52,6 +52,7 @@ int main(int ac, char** av){
 
     menu.root->visible = YES;
     menu.focus = menu.root;
+    menu.active = menu.root;
     XMapWindow(menu.display, menu.root->window);
     return bye(update(&menu, &cfg), &cfg, &menu);
 }
@@ -269,6 +270,7 @@ byte bye(const int code, Config* const cfg, Menu* const menu){
 
     if (menu->root) free_window(menu->root);
     if (menu->search) free_window(menu->search);
+    if (menu->input) free_charlist(menu->input);
     if (menu->gc) XFreeGC(menu->display, menu->gc);
     if (menu->display) XCloseDisplay(menu->display);
     unlink(LOCKFILE);

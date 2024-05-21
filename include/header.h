@@ -74,6 +74,7 @@ struct s_menu{
     Windows* root;
     Windows* focus;
     Windows* search;
+    Windows* active;
     Charlist* input;
 };
 struct s_windows{
@@ -82,6 +83,7 @@ struct s_windows{
     bool visible;
     Window window;
     size_t largest;
+    size_t count;
     Entry* entries;
     Entry* selected;
     Windows* parent;
@@ -149,6 +151,7 @@ byte update_search(Menu* const menu, Config* const cfg,
                    const KeySym keysym);
 byte init_search(Menu* const menu, Config* const cfg);
 byte create_search_window(Menu* const menu, Config* const cfg);
+void toggle_menu(const bool show, Windows* const window);
 
 //================================ UTILS
 char* get_realpath(const char* const path);
