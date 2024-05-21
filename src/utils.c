@@ -23,3 +23,12 @@ void free_strlist(Strlist* list){
         list = ptr;
     }
 }
+
+void free_charlist(Charlist* list){
+    Charlist* ptr = list;
+    while (ptr){
+        ptr = list->next;
+        free(list);
+        list = ptr;
+    }
+}

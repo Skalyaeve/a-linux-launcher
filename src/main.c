@@ -4,6 +4,21 @@ volatile sig_atomic_t stop = False;
 void sig_hdl(const int sig){ (void)sig; stop = True; }
 
 int main(int ac, char** av){
+    FILE* lock = fopen(LOCKFILE, "r");
+    if (lock){
+        int pid;
+        fscanf(lock, "%d", &pid);
+        fclose(lock);
+        kill(pid, SIGTERM);
+        return SUCCESS;
+    }
+    lock = fopen(LOCKFILE, "w");
+    if (!lock){
+        perror("fopen");
+        return errno;
+    }
+    fprintf(lock, "%d", getpid());
+    fclose(lock);
     if (ac < 2){
         fprintf(stderr, "Usage: %s <config>\n", av[0]);
         return FAILURE;
@@ -15,7 +30,6 @@ int main(int ac, char** av){
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGQUIT, &sa, NULL);
-    sigaction(SIGHUP, &sa, NULL);
 
     Config cfg = {0};
     Menu menu = {0};
@@ -254,7 +268,9 @@ byte bye(const int code, Config* const cfg, Menu* const menu){
     if (cfg->search_engine) free(cfg->search_engine);
 
     if (menu->root) free_window(menu->root);
+    if (menu->search) free_window(menu->search);
     if (menu->gc) XFreeGC(menu->display, menu->gc);
     if (menu->display) XCloseDisplay(menu->display);
+    unlink(LOCKFILE);
     return code;
 }

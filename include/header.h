@@ -10,6 +10,11 @@
 #define APP 1
 #define LINK 2
 
+#define MENU 1
+#define SEARCH 2
+
+#define LOCKFILE "/tmp/launcher.ft.lock"
+
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/keysym.h>
@@ -38,8 +43,8 @@ typedef struct s_entry Entry;
 typedef struct s_windows Windows;
 typedef struct s_menu Menu;
 typedef struct s_exec Exec;
-typedef struct s_nbrlist Nbrlist;
 typedef struct s_strlist Strlist;
+typedef struct s_charlist Charlist;
 
 struct s_config{
     char* path;
@@ -68,6 +73,8 @@ struct s_menu{
     GC gc;
     Windows* root;
     Windows* focus;
+    Windows* search;
+    Charlist* input;
 };
 struct s_windows{
     ushort x;
@@ -95,6 +102,11 @@ struct s_exec{
 struct s_strlist{
     char* str;
     Strlist* next;
+};
+struct s_charlist{
+    char c;
+    Charlist* next;
+    Charlist* prev;
 };
 
 //================================ MAIN
@@ -127,16 +139,20 @@ byte order_entries(Entry* entries, Strlist* order,
 byte update(Menu* const menu, Config* const cfg);
 void draw(Config* const cfg, Menu* const menu,
           Windows* const window);
-void change_selected(Menu* const menu, Config* const cfg,
+void update_selected(Menu* const menu, Config* const cfg,
                      const KeySym keysym);
-void change_focus(Menu* const menu, Config* const cfg,
+void update_focus(Menu* const menu, Config* const cfg,
                   const KeySym keysym);
 void spawn_child(Menu* const menu);
 void exec(char* const cmd, Config* const cfg, Menu* const menu);
+byte update_search(Menu* const menu, Config* const cfg,
+                   const KeySym keysym);
+byte init_search(Menu* const menu, Config* const cfg);
+byte create_search_window(Menu* const menu, Config* const cfg);
 
 //================================ UTILS
 char* get_realpath(const char* const path);
-void free_nbrlist(Nbrlist* list);
 void free_strlist(Strlist* list);
+void free_charlist(Charlist* list);
 
 #endif

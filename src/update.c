@@ -5,6 +5,7 @@ extern volatile sig_atomic_t stop;
 byte update(Menu* const menu, Config* const cfg){
     XEvent event;
     KeySym keysym;
+    byte mode = MENU;
     while (!stop){
         while (XPending(menu->display) > 0){
             XNextEvent(menu->display, &event);
@@ -15,15 +16,28 @@ byte update(Menu* const menu, Config* const cfg){
                 case KeyPress:
                     keysym = XLookupKeysym(&event.xkey, 0);
                     if (keysym == XK_Up || keysym == XK_Down)
-                        change_selected(menu, cfg, keysym);
-                    else if (keysym == XK_Left || keysym == XK_Right)
-                        change_focus(menu, cfg, keysym);
+                        update_selected(menu, cfg, keysym);
+                    else if (keysym == XK_Left
+                            || keysym == XK_Right){
+                        switch (mode){
+                            case MENU:
+                                update_focus(menu, cfg, keysym);
+                                break;
+                            case SEARCH:
+                                break;
+                        }
+                    }
                     else if (keysym == XK_Return){
                         if (menu->focus->selected->exec)
                             exec(menu->focus->selected->exec,
                                  cfg, menu);
                     }
                     else if (keysym == XK_Escape) stop = True;
+                    else{
+                        if (mode == MENU) mode = SEARCH;
+                        if (update_search(menu, cfg, keysym)
+                            != SUCCESS) return FAILURE;
+                    }
                     break;
             }
         }
@@ -63,7 +77,7 @@ void draw(Config* const cfg, Menu* const menu,
     }
 }
 
-void change_selected(Menu* const menu, Config* const cfg,
+void update_selected(Menu* const menu, Config* const cfg,
                      const KeySym keysym){
     Entry* ptr;
     if (!menu->focus->selected)
@@ -94,7 +108,7 @@ void change_selected(Menu* const menu, Config* const cfg,
     draw(cfg, menu, menu->root);
 }
 
-void change_focus(Menu* const menu, Config* const cfg,
+void update_focus(Menu* const menu, Config* const cfg,
                   const KeySym keysym){
     if (!menu->focus->selected) return;
     switch (keysym){
@@ -154,4 +168,66 @@ void exec(char* const cmd, Config* const cfg, Menu* const menu){
     }
     free(tmp);
     exit(SUCCESS);
+}
+
+byte update_search(Menu* const menu, Config* const cfg,
+                   const KeySym keysym){
+    if (!menu->search && !init_search(menu, cfg))
+        return FAILURE;
+    Charlist** ptr = &menu->input;
+    Charlist* prev = NULL;
+    if (keysym != XK_BackSpace){
+        while (*ptr){
+            prev = *ptr;
+            ptr = &(*ptr)->next;
+        }
+        *ptr = malloc(sizeof(Charlist));
+        if (!*ptr){
+            perror("malloc");
+            return FAILURE;
+        }
+        (*ptr)->c = XKeysymToKeycode(menu->display, keysym);
+        (*ptr)->next = NULL;
+        (*ptr)->prev = prev;
+        if (prev) prev->next = *ptr;
+    }
+    else{
+    }
+    ptr = &menu->input;
+    while (*ptr){
+        printf("%c", (*ptr)->c);
+    }
+    printf("\n");
+    return SUCCESS;
+}
+
+byte init_search(Menu* const menu, Config* const cfg){
+    menu->search = malloc(sizeof(Windows));
+    if (!menu->search){
+        perror("malloc");
+        return FAILURE;
+    }
+    memset(menu->search, 0, sizeof(Windows));
+    menu->search->window->x = cfg->x;
+    menu->search->window->y = cfg->y;
+    menu->search->window->largest = 200;
+    menu->search->window->count = 1;
+    if (create_search_window(menu, cfg) == FAILURE)
+        return FAILURE;
+    menu->focus = menu->search;
+    return SUCCESS;
+}
+
+byte create_search_window(Menu* const menu, Config* const cfg){
+    menu->search->window->window = XCreateSimpleWindow(
+        menu->display, RootWindow(menu->display, menu->screen),
+        menu->search->window->x, menu->search->window->y,
+        menu->search->largest + cfg->x_padding * 2,
+        cfg->font_size * menu->search->count
+        + cfg->line_margin * (menu->search->count - 1)
+        + cfg->y_padding * 2, cfg->border_size,
+        cfg->border_color.pixel, cfg->bg_color.pixel);
+    if (setwindows(menu->display, menu->search) == FAILURE)
+        return FAILURE;
+    return SUCCESS;
 }

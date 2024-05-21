@@ -99,6 +99,7 @@ Windows* create_window(const char* const path,
     window->x = cfg->x + x_offset;
     window->y = cfg->y + y_offset;
     window->largest = largest;
+    window->count = count;
     window->window = XCreateSimpleWindow(
         menu->display, RootWindow(menu->display, menu->screen),
         window->x, window->y, largest + cfg->x_padding * 2,
