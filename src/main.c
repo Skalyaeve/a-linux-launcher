@@ -127,6 +127,12 @@ int config(const char* const path, Config* const cfg,
         else if (!strcmp(key, "window-margin"))
             cfg->window_margin = atoi(value);
 
+        else if (!strcmp(key, "max-len"))
+            cfg->max_len = atoi(value);
+
+        else if (!strcmp(key, "max-lines"))
+            cfg->max_lines= atoi(value);
+
         else if (!strcmp(key, "font")){
             cfg->font = strdup(value);
             if (!cfg->font){
@@ -209,13 +215,17 @@ int init(Menu* const menu, Config* const cfg){
 byte setwindows(Display* const display, Windows* const ptr){
     if (setprops(display, &ptr->window) == FAILURE) return FAILURE;
     XSelectInput(display, ptr->window, ExposureMask | KeyPressMask);
+    ptr->draw_start = ptr->entries;
+    ushort count = ptr->count;
     Entry* entry = ptr->entries;
     while (entry){
-        if (entry->child)
-            if (setwindows(display, entry->child) == FAILURE)
+        if (entry->child
+            && setwindows(display, entry->child) == FAILURE)
                 return FAILURE;
         entry = entry->next;
+        if (count && !--count) ptr->draw_end = entry;
     }
+    if (!ptr->draw_end) ptr->draw_end = entry;
     return SUCCESS;
 }
 
@@ -268,11 +278,15 @@ byte bye(const int code, Config* const cfg, Menu* const menu){
     if (cfg->browser) free(cfg->browser);
     if (cfg->search_engine) free(cfg->search_engine);
 
-    if (menu->root) free_window(menu->root);
-    if (menu->search) free_window(menu->search);
-    if (menu->input) free_charlist(menu->input);
     if (menu->gc) XFreeGC(menu->display, menu->gc);
     if (menu->display) XCloseDisplay(menu->display);
+    if (menu->root) free_window(menu->root);
+    if (menu->search){
+        if (menu->search->str) free_chardlist(menu->search->str);
+        if (menu->search->input) free_window(menu->search->input);
+        if (menu->search->result) free_window(menu->search->result);
+        free(menu->search);
+    }
     unlink(LOCKFILE);
     return code;
 }

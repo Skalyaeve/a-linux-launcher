@@ -4,7 +4,7 @@ extern volatile sig_atomic_t stop;
 
 Windows* create_window(const char* const path,
                        Menu* const menu, Config* const cfg,
-                       size_t x_offset, size_t y_offset){
+                       ushort x_offset, ushort y_offset){
     if (stop) return NULL;
     Windows* window = malloc(sizeof(Windows));
     if (!window){
@@ -21,9 +21,9 @@ Windows* create_window(const char* const path,
         perror("opendir");
         return NULL;
     }
-    size_t count = 0;
-    size_t len = 0;
-    size_t largest = 0;
+    ushort count = 0;
+    ushort len = 0;
+    ushort largest = 0;
     Dirent* entry;
     char* rpath = NULL;
     Strlist* order = NULL;
@@ -57,6 +57,7 @@ Windows* create_window(const char* const path,
             (*entries)->have_child = YES;
             len = strlen(strstr((*entries)->name, path)
                          + strlen(path) + 1) + 4;
+            if (len - 4 > cfg->max_len) len = cfg->max_len + 4;
         }
         else{
             if (!strcmp(entry->d_name, ".ord")){
@@ -90,22 +91,17 @@ Windows* create_window(const char* const path,
         }
         free_strlist(order);
     }
-    if (create_childs(window, path, largest,
-                      x_offset, y_offset, menu, cfg) != SUCCESS){
+    if (create_childs(window, path, largest, x_offset, y_offset,
+                      menu, cfg) != SUCCESS){
         free_window(window);
         return NULL;
     }
-    largest *= cfg->font_size / 2;
     window->x = cfg->x + x_offset;
     window->y = cfg->y + y_offset;
-    window->largest = largest;
+    window->largest = largest * cfg->font_size / 2
+        + cfg->x_padding * 2;
     window->count = count;
-    window->window = XCreateSimpleWindow(
-        menu->display, RootWindow(menu->display, menu->screen),
-        window->x, window->y, largest + cfg->x_padding * 2,
-        cfg->font_size * count + cfg->line_margin * (count - 1)
-        + cfg->y_padding * 2, cfg->border_size,
-        cfg->border_color.pixel, cfg->bg_color.pixel);
+    window->window = new_window(window, menu, cfg);
     if (!window->window){
         free_window(window);
         window = NULL;
@@ -123,14 +119,15 @@ void link_entries(Entry* entries){
 }
 
 bool create_childs(Windows* const window, const char* const path,
-                   const size_t largest, size_t x_offset,
-                   size_t y_offset, Menu* const menu,
+                   const ushort largest, ushort x_offset,
+                   ushort y_offset, Menu* const menu,
                    Config* const cfg){
     char* ptr;
     char* substr;
     Entry* entries = window->entries;
-    x_offset += largest * cfg->font_size / 2 + cfg->window_margin
-        + cfg->x_padding * 2 + cfg->border_size * 2;
+    x_offset += largest * cfg->font_size / 2 + cfg->x_padding * 2
+        + cfg->border_size * 2 + cfg->window_margin;
+    size_t len;
     while (entries){
         if (!entries->have_child){
             entries = entries->next;
@@ -147,10 +144,13 @@ bool create_childs(Windows* const window, const char* const path,
             perror("strdup");
             break;
         }
-        memcpy(ptr, substr, strlen(substr));
-        memset(ptr + strlen(substr), ' ', largest - strlen(substr));
+        len = strlen(substr);
+        if (len > cfg->max_len) len = cfg->max_len;
+        memcpy(ptr, substr, len);
+        memset(ptr + len, ' ', largest - len);
         ptr[largest - 1] = '>';
         ptr[largest] = '\0';
+        entries->fullname = strdup(substr);
         free(entries->name);
         entries->name = ptr;
         y_offset += cfg->font_size + cfg->line_margin;
@@ -165,6 +165,7 @@ void free_window(Windows* const window){
     while (entry){
         next = entry->next;
         if (entry->name) free(entry->name);
+        if (entry->fullname) free(entry->fullname);
         if (entry->exec) free(entry->exec);
         if (entry->child) free_window(entry->child);
         free(entry);
@@ -203,8 +204,15 @@ int new_app(const char* const path, Entry* const entry,
                          "Invalid value for Type: %s", value);
         }
         else if (!strcmp(key, "Name")){
-            entry->name = strdup(value);
+            size_t len = strlen(value);
+            if (len > cfg->max_len) len = cfg->max_len;
+            entry->name = strndup(value, len);
             if (!entry->name){
+                perror("strdup");
+                break;
+            }
+            entry->fullname = strdup(value);
+            if (!entry->fullname){
                 perror("strdup");
                 break;
             }
@@ -248,7 +256,7 @@ char* fill_exec(Exec* const exec, Config* const cfg){
         return NULL;
     }
     char* ptr;
-    size_t len;
+    ushort len;
     switch (exec->type){
         case APP:
             len = strlen(exec->cmd) + 1;
@@ -322,7 +330,9 @@ byte order_entries(Entry* entries, Strlist* order,
     while (order){
         ptr = entries;
         while (ptr){
-            str = strdup(ptr->name + strlen(path) + 1);
+            if (ptr->have_child)
+                str = strdup(ptr->name + strlen(path) + 1);
+            else str = strdup(ptr->fullname);
             if (!str){
                 perror("strdup");
                 return FAILURE;
@@ -330,12 +340,12 @@ byte order_entries(Entry* entries, Strlist* order,
             if (!strcmp(str, order->str)){
                 free(str);
                 memcpy(&tmp, ptr, sizeof(Entry));
-
                 ptr->name = entries->name;
+                ptr->fullname = entries->fullname;
                 ptr->exec = entries->exec;
                 entries->name = tmp.name;
+                entries->fullname = tmp.fullname;
                 entries->exec = tmp.exec;
-
                 entries = entries->next;
                 break;
             }
@@ -345,4 +355,16 @@ byte order_entries(Entry* entries, Strlist* order,
         order = order->next;
     }
     return SUCCESS;
+}
+
+Window new_window(Windows* const window, Menu* const menu,
+                  Config* const cfg){
+    const ushort lines = window->count > cfg->max_lines
+        ? cfg->max_lines : window->count;
+    return XCreateSimpleWindow(
+        menu->display, RootWindow(menu->display, menu->screen),
+        window->x, window->y, window->largest, cfg->font_size
+        * lines + cfg->line_margin * (lines - 1) + cfg->y_padding
+        * 2, cfg->border_size, cfg->border_color.pixel,
+        cfg->bg_color.pixel);
 }

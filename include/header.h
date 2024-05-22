@@ -42,25 +42,28 @@ typedef struct s_config Config;
 typedef struct s_entry Entry;
 typedef struct s_windows Windows;
 typedef struct s_menu Menu;
+typedef struct s_input Input;
 typedef struct s_exec Exec;
 typedef struct s_strlist Strlist;
-typedef struct s_charlist Charlist;
+typedef struct s_chardlist Chardlist;
 
 struct s_config{
     char* path;
-    ushort x;
-    ushort y;
+    short x;
+    short y;
     ubyte border_size;
     XColor border_color;
     XColor bg_color;
     XColor fg_color;
     XColor focus_bg_color;
     XColor focus_fg_color;
-    ushort x_padding;
-    ushort y_padding;
-    ushort line_margin;
-    ushort window_margin;
+    short x_padding;
+    short y_padding;
+    short line_margin;
+    short window_margin;
     ushort font_size;
+    ushort max_len;
+    ushort max_lines;
     char* font;
     char* terminal;
     char* shell;
@@ -73,23 +76,31 @@ struct s_menu{
     GC gc;
     Windows* root;
     Windows* focus;
-    Windows* search;
+    Windows* last_focus;
     Windows* active;
-    Charlist* input;
+    Input* search;
+};
+struct s_input{
+    Chardlist* str;
+    Windows* input;
+    Windows* result;
 };
 struct s_windows{
-    ushort x;
-    ushort y;
-    bool visible;
+    short x;
+    short y;
+    ushort largest;
+    ushort count;
     Window window;
-    size_t largest;
-    size_t count;
+    bool visible;
     Entry* entries;
     Entry* selected;
+    Entry* draw_start;
+    Entry* draw_end;
     Windows* parent;
 };
 struct s_entry{
     char* name;
+    char* fullname;
     char* exec;
     bool have_child;
     Windows* child;
@@ -105,10 +116,10 @@ struct s_strlist{
     char* str;
     Strlist* next;
 };
-struct s_charlist{
+struct s_chardlist{
     char c;
-    Charlist* next;
-    Charlist* prev;
+    Chardlist* next;
+    Chardlist* prev;
 };
 
 //================================ MAIN
@@ -123,11 +134,11 @@ byte bye(const int code, Config* const cfg, Menu* const menu);
 //================================ WINDOW
 Windows* create_window(const char* const path,
                        Menu* const menu, Config* const cfg,
-                       size_t x_offset, size_t y_offset);
+                       ushort x_offset, ushort y_offset);
 void link_entries(Entry* entries);
 bool create_childs(Windows* const window, const char* const path,
-                   const size_t largest, size_t x_offset,
-                   size_t y_offset, Menu* const menu,
+                   const ushort largest, ushort x_offset,
+                   ushort y_offset, Menu* const menu,
                    Config* const cfg);
 void free_window(Windows* const window);
 int new_app(const char* const path, Entry* const entry,
@@ -136,6 +147,8 @@ char* fill_exec(Exec* const exec, Config* const cfg);
 Strlist* get_order(const char* const path);
 byte order_entries(Entry* entries, Strlist* order,
                    const char* const path);
+Window new_window(Windows* const window, Menu* const menu,
+                    Config* const cfg);
 
 //================================ UPDATE
 byte update(Menu* const menu, Config* const cfg);
@@ -147,15 +160,18 @@ void update_focus(Menu* const menu, Config* const cfg,
                   const KeySym keysym);
 void spawn_child(Menu* const menu);
 void exec(char* const cmd, Config* const cfg, Menu* const menu);
-byte update_search(Menu* const menu, Config* const cfg,
-                   const KeySym keysym);
+void toggle_menu(const bool show, Display* const display,
+                 Windows* const window);
+
+//================================ SEARCH
 byte init_search(Menu* const menu, Config* const cfg);
-byte create_search_window(Menu* const menu, Config* const cfg);
-void toggle_menu(const bool show, Windows* const window);
+void toggle_search(const bool show, Menu* const menu);
+byte update_search(Menu* const menu, const KeySym keysym,
+                   byte* const mode);
 
 //================================ UTILS
 char* get_realpath(const char* const path);
 void free_strlist(Strlist* list);
-void free_charlist(Charlist* list);
+void free_chardlist(Chardlist* list);
 
 #endif

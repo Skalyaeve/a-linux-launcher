@@ -28,23 +28,27 @@ byte update(Menu* const menu, Config* const cfg){
                         }
                     }
                     else if (keysym == XK_Return){
+                        if (!menu->focus->selected) break;
                         if (menu->focus->selected->exec)
                             exec(menu->focus->selected->exec,
                                  cfg, menu);
                     }
                     else if (keysym == XK_Escape) stop = True;
                     else{
+                        if (keysym == XK_BackSpace
+                            && (!menu->search || !menu->search->str))
+                            continue;
                         if (!menu->search
                             && init_search(menu, cfg) == FAILURE)
                             return FAILURE;
                         if (mode == MENU){
                             mode = SEARCH;
-                            menu->search->visible = YES;
-                            menu->focus = menu->search;
-                            menu->active = menu->search;
-                            toggle_menu(NO, menu->root);
+                            menu->last_focus = menu->focus;
+                            toggle_menu(NO, menu->display,
+                                        menu->root);
+                            toggle_search(YES, menu);
                         }
-                        if (update_search(menu, keysym)
+                        if (update_search(menu, keysym, &mode)
                             != SUCCESS) return FAILURE;
                         draw(cfg, menu, menu->active);
                     }
@@ -58,9 +62,9 @@ byte update(Menu* const menu, Config* const cfg){
 void draw(Config* const cfg, Menu* const menu,
           Windows* const window){
     if (window->visible == NO) return;
-    Entry* ptr = window->entries;
+    Entry* ptr = window->draw_start;
     ushort y = cfg->y_padding + cfg->font_size * 0.75;
-    while (ptr){
+    while (ptr != window->draw_end){
         XSetForeground(menu->display, menu->gc, cfg->bg_color.pixel);
         XFillRectangle(menu->display, window->window, menu->gc,
                        0, y - cfg->font_size - cfg->font_size * 0.25,
@@ -89,6 +93,7 @@ void draw(Config* const cfg, Menu* const menu,
 
 void update_selected(Menu* const menu, Config* const cfg,
                      const KeySym keysym){
+    if (!menu->focus->entries) return;
     Entry* ptr;
     if (!menu->focus->selected)
         menu->focus->selected = menu->focus->entries;
@@ -100,17 +105,36 @@ void update_selected(Menu* const menu, Config* const cfg,
         }
         switch (keysym){
             case XK_Up:
+                if (menu->focus->selected == menu->focus->draw_start
+                    && menu->focus->selected->prev)
+                        menu->focus->draw_start
+                            = menu->focus->draw_start->prev;
                 menu->focus->selected = menu->focus->selected->prev;
                 if (!menu->focus->selected){
                     ptr = menu->focus->entries;
                     while (ptr->next) ptr = ptr->next;
                     menu->focus->selected = ptr;
+                    menu->focus->draw_end = ptr;
+                    menu->focus->draw_start = ptr;
+                    for (ushort i = menu->focus->count; i > 0; --i)
+                        menu->focus->draw_start
+                            = menu->focus->draw_start->prev;
                 }
                 break;
             case XK_Down:
+                if (menu->focus->selected == menu->focus->draw_end
+                    && menu->focus->selected->next)
+                        menu->focus->draw_start
+                            = menu->focus->draw_start->next;
                 menu->focus->selected = menu->focus->selected->next;
-                if (!menu->focus->selected)
+                if (!menu->focus->selected){
                     menu->focus->selected = menu->focus->entries;
+                    menu->focus->draw_start = menu->focus->entries;
+                    menu->focus->draw_end = menu->focus->entries;
+                    for (ushort i = menu->focus->count; i > 0; --i)
+                        menu->focus->draw_end
+                            = menu->focus->draw_end->next;
+                }
                 break;
         }
     }
@@ -180,77 +204,19 @@ void exec(char* const cmd, Config* const cfg, Menu* const menu){
     exit(SUCCESS);
 }
 
-byte update_search(Menu* const menu, const KeySym keysym){
-    Charlist** ptr = &menu->input;
-    Charlist* prev = NULL;
-    if (keysym != XK_BackSpace){
-        while (*ptr){
-            prev = *ptr;
-            ptr = &(*ptr)->next;
-        }
-        *ptr = malloc(sizeof(Charlist));
-        if (!*ptr){
-            perror("malloc");
-            return FAILURE;
-        }
-        (*ptr)->c = XKeysymToString(keysym)[0];
-        (*ptr)->next = NULL;
-        (*ptr)->prev = prev;
-        if (prev) prev->next = *ptr;
-    }
-    else{
-        if (!*ptr) return SUCCESS;
-        while ((*ptr)->next){
-            prev = *ptr;
-            ptr = &(*ptr)->next;
-        }
-        free(*ptr);
-        *ptr = NULL;
-        if (prev) prev->next = NULL;
-    }
-    return SUCCESS;
-}
-
-byte init_search(Menu* const menu, Config* const cfg){
-    menu->search = malloc(sizeof(Windows));
-    if (!menu->search){
-        perror("malloc");
-        return FAILURE;
-    }
-    memset(menu->search, 0, sizeof(Windows));
-    menu->search->x = cfg->x;
-    menu->search->y = cfg->y;
-    menu->search->largest = 200;
-    menu->search->count = 1;
-    return create_search_window(menu, cfg) == FAILURE
-           ? FAILURE : SUCCESS;
-}
-
-byte create_search_window(Menu* const menu, Config* const cfg){
-    menu->search->window = XCreateSimpleWindow(
-        menu->display, RootWindow(menu->display, menu->screen),
-        menu->search->x, menu->search->y,
-        menu->search->largest + cfg->x_padding * 2,
-        cfg->font_size * menu->search->count
-        + cfg->line_margin * (menu->search->count - 1)
-        + cfg->y_padding * 2, cfg->border_size,
-        cfg->border_color.pixel, cfg->bg_color.pixel);
-    return setwindows(menu->display, menu->search) == FAILURE
-           ? FAILURE : SUCCESS;
-}
-
-void toggle_menu(const bool show, Windows* const window){
+void toggle_menu(const bool show, Display* const display,
+                 Windows* const window){
     for (Entry* ptr = window->entries; ptr; ptr = ptr->next)
-        if (ptr->child) toggle_menu(show, ptr->child);
+        if (ptr->child) toggle_menu(show, display, ptr->child);
     if (window->visible == YES){
         switch (show){
             case YES:
-                XMoveWindow(window->display, window->window,
+                XMoveWindow(display, window->window,
                             window->x, window->y);
-                XMapWindow(window->display, window->window);
+                XMapWindow(display, window->window);
                 break;
             case NO:
-                XUnmapWindow(window->display, window->window);
+                XUnmapWindow(display, window->window);
                 break;
         }
     }

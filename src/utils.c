@@ -24,8 +24,8 @@ void free_strlist(Strlist* list){
     }
 }
 
-void free_charlist(Charlist* list){
-    Charlist* ptr = list;
+void free_chardlist(Chardlist* list){
+    Chardlist* ptr = list;
     while (ptr){
         ptr = list->next;
         free(list);
