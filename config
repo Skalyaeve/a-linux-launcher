@@ -3,7 +3,7 @@ y               = 4
 x-padding       = 14
 y-padding       = 18
 line-margin     = 20
-max-lines       = -1
+max-lines       = 10
 border-size     = 4
 window-margin   = -4
 
