@@ -46,16 +46,16 @@ byte update(Menu* const menu, Config* const cfg){
                         if (!menu->search
                             && init_search(menu, cfg) == FAILURE)
                             return FAILURE;
-
-                        if (update_search(menu, keysym, &mode, cfg)
-                            != SUCCESS) return FAILURE;
                         if (mode == MENU){
                             mode = SEARCH;
                             menu->last_focus = menu->focus;
                             toggle_menu(NO, menu->display,
                                         menu->root);
-                            toggle_search(YES, menu);
+                            menu->focus = menu->search->result;
+                            menu->active = menu->search->result;
                         }
+                        if (update_search(menu, keysym, &mode, cfg)
+                            != SUCCESS) return FAILURE;
                         draw(cfg, menu, menu->active);
                     }
                     break;

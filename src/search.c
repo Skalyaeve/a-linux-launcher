@@ -10,16 +10,6 @@ byte init_search(Menu* const menu, Config* const cfg){
     }
     memset(menu->search, 0, sizeof(Input));
 
-    menu->search->input = malloc(sizeof(Windows));
-    if (!menu->search->input){
-        perror("malloc");
-        return FAILURE;
-    }
-    memset(menu->search->input, 0, sizeof(Windows));
-    menu->search->input->x = cfg->x;
-    menu->search->input->y = cfg->y;
-    menu->search->input->count = 1;
-
     menu->search->result = malloc(sizeof(Windows));
     if (!menu->search->result){
         perror("malloc");
@@ -27,40 +17,8 @@ byte init_search(Menu* const menu, Config* const cfg){
     }
     memset(menu->search->result, 0, sizeof(Windows));
     menu->search->result->x = cfg->x;
-    menu->search->result->y = cfg->y + cfg->font_size
-        + cfg->y_padding * 2 + cfg->window_margin;
+    menu->search->result->y = cfg->y;
     menu->search->result->visible = YES;
-
-    menu->search->result->entries = malloc(sizeof(Entry));
-    if (!menu->search->result->entries){
-        perror("malloc");
-        return FAILURE;
-    }
-    memset(menu->search->result->entries, 0, sizeof(Entry));
-    menu->search->result->entries->fullname = strdup("Web Search: ");
-    if (!menu->search->result->entries->fullname){
-        perror("strdup");
-        return FAILURE;
-    }
-    menu->search->result->entries->name
-        = strndup("Web Search: ", cfg->max_len);
-    if (!menu->search->result->entries->name){
-        perror("strndup");
-        return FAILURE;
-    }
-    menu->search->result->entries->exec
-        = malloc(strlen(cfg->browser)
-                 + strlen(cfg->search_engine) + 2);
-    if (!menu->search->result->entries->exec){
-        perror("malloc");
-        return FAILURE;
-    }
-    snprintf(menu->search->result->entries->exec,
-             strlen(cfg->browser) + strlen(cfg->search_engine) + 2,
-             "%s %s", cfg->browser, cfg->search_engine);
-
-    menu->search->result->draw_start = menu->search->result->entries;
-    menu->search->result->draw_end = menu->search->result->entries;
     return SUCCESS;
 }
 
@@ -78,7 +36,7 @@ byte update_search(Menu* const menu, const KeySym keysym,
             perror("malloc");
             return FAILURE;
         }
-        (*ptr)->len++;
+        menu->search->len++;
         (*ptr)->c = XKeysymToString(keysym)[0];
         (*ptr)->next = NULL;
         (*ptr)->prev = prev;
@@ -91,26 +49,31 @@ byte update_search(Menu* const menu, const KeySym keysym,
         }
         free(*ptr);
         *ptr = NULL;
-        (*ptr)->len--;
+        menu->search->len--;
         if (!prev){
             *mode = MENU;
             toggle_menu(YES, menu->display, menu->root);
-            toggle_search(NO, menu);
+            menu->focus = menu->last_focus;
+            menu->active = menu->root;
+            XUnmapWindow(menu->display,
+                         menu->search->result->window);
             return SUCCESS;
         }
         prev->next = NULL;
     }
-    char* const str = update_input(menu, cfg);
+    char* const str = update_input(menu);
     if (!str) return FAILURE;
     if (update_result(menu, cfg, str) == FAILURE){
         free(str);
         return FAILURE;
     }
     free(str);
+    menu->search->result->selected = menu->search->result->entries;
+    menu->search->result->index = 1;
     return SUCCESS;
 }
 
-char* update_input(Menu* const menu, Config* const cfg){
+char* update_input(Menu* const menu){
     char* const str = malloc(menu->search->len + 1);
     if (!str){
         perror("malloc");
@@ -121,34 +84,6 @@ char* update_input(Menu* const menu, Config* const cfg){
         ptr = ptr->next, x++)
         str[x] = ptr->c;
     str[x] = '\0';
-
-    Windows* const input = menu->search->input;
-    input->largest = x * cfg->font_size / 2 + cfg->x_padding * 2;
-    if (input->window) XDestroyWindow(menu->display, input->window);
-
-    input->window = new_window(input, menu, cfg);
-    if (!input->window
-        || setwindows(menu->display, input) == FAILURE){
-        free(str);
-        return NULL;
-    }
-    XMapWindow(menu->display, input->window);
-    XWindowAttributes attr;
-    do{
-        XGetWindowAttributes(menu->display, input->window, &attr);
-    }while (attr.map_state != IsViewable);
-
-    XSetForeground(menu->display, menu->gc,
-                   cfg->input_bg_color.pixel);
-    XFillRectangle(menu->display, input->window, menu->gc,
-                   cfg->x_padding, cfg->y_padding,
-                   window->largest - cfg->x_padding * 2,
-                   cfg->font_size - cfg->y_padding * 2);
-    XSetForeground(menu->display, menu->gc,
-                   cfg->input_fg_color.pixel);
-    XDrawString(menu->display, input->window, menu->gc,
-                cfg->x_padding, cfg->y_padding + cfg->font_size,
-                str, x);
     return str;
 }
 
@@ -156,40 +91,50 @@ byte update_result(Menu* const menu, Config* const cfg,
                    char* const str){
     Windows* const result = menu->search->result;
     if (result->entries) free_entries(result->entries);
+    result->largest = 0;
+    result->count = 0;
     result->entries = get_search_result(menu->root->entries,
-                                        str, menu, cfg);
-    if (!result->entries) return FAILURE;
+                                        str, cfg, menu);
+    if (add_websearch(menu, cfg, str) != SUCCESS) return FAILURE;
 
-    if (result->window)
-        XDestroyWindow(menu->display, result->window);
-    result->window = new_window(result, menu, cfg);
-    if (!result->window
-        || setwindows(menu->display, result) == FAILURE){
+    result->largest = result->largest * cfg->font_size / 2
+        + cfg->x_padding * 2;
+
+    Window tmp_window = new_window(result, menu, cfg);
+    if (!tmp_window ||
+        setwindows(menu->display, result, &tmp_window) == FAILURE){
         free_entries(result->entries);
         return FAILURE;
     }
-    XMapWindow(menu->display, result->window);
+    XMapWindow(menu->display, tmp_window);
     XWindowAttributes attr;
     do{
-        XGetWindowAttributes(menu->display, result->window, &attr);
+        XGetWindowAttributes(menu->display, tmp_window, &attr);
     }while (attr.map_state != IsViewable);
+    if (result->window)
+        XDestroyWindow(menu->display, result->window);
+    result->window = tmp_window;
     return SUCCESS;
 }
 
-Entry* get_search_result(Entry* src, char* const str){
+Entry* get_search_result(Entry* src, char* const str,
+                         Config* const cfg, Menu* const menu){
     Entry* result = NULL;
     Entry* prev = NULL;
     Entry** ptr = &result;
+    ushort size;
     while (src){
         if (src->have_child == YES){
-            *ptr = get_search_result(src->child, str);
-            if (!*ptr){
-                free_entries(result);
-                return NULL;
+            *ptr = get_search_result(src->child->entries,
+                                     str, cfg, menu);
+            while (*ptr){
+                size = strlen((*ptr)->name);
+                if (size > menu->search->result->largest)
+                    menu->search->result->largest = size;
+                (*ptr)->prev = prev;
+                prev = *ptr;
+                ptr = &(*ptr)->next;
             }
-            (*ptr)->prev = prev;
-            while ((*ptr)->next) *ptr = (*ptr)->next;
-            ptr = &(*ptr)->next;
         }
         else if (strstr(src->fullname, str)){
             *ptr = malloc(sizeof(Entry));
@@ -217,31 +162,65 @@ Entry* get_search_result(Entry* src, char* const str){
                 free_entries(result);
                 return NULL;
             }
+            size = strlen((*ptr)->name);
+            if (size > menu->search->result->largest)
+                menu->search->result->largest = size;
             (*ptr)->prev = prev;
             ptr = &(*ptr)->next;
+            menu->search->result->count++;
         }
         src = src->next;
     }
     return result;
 }
 
-void toggle_search(const bool show, Menu* const menu){
-    if (show){
-        menu->focus = menu->search->result;
-        menu->active = menu->search->result;
-        XMoveWindow(menu->display, menu->search->input->window,
-                    menu->search->input->x,
-                    menu->search->input->y);
-        XMapWindow(menu->display, menu->search->input->window);
-        XMoveWindow(menu->display, menu->search->result->window,
-                    menu->search->result->x,
-                    menu->search->result->y);
-        XMapWindow(menu->display, menu->search->result->window);
+byte add_websearch(Menu* const menu, Config* const cfg,
+                   char* const str){
+    Entry* ptr = menu->search->result->entries;
+    if (ptr){
+        while (ptr->next) ptr = ptr->next;
+        ptr->next = malloc(sizeof(Entry));
+        if (!ptr->next){
+            perror("malloc");
+            return FAILURE;
+        }
+        memset(ptr->next, 0, sizeof(Entry));
+        ptr->next->prev = ptr;
+        ptr = ptr->next;
     }
     else{
-        menu->focus = menu->last_focus;
-        menu->active = menu->root;
-        XUnmapWindow(menu->display, menu->search->input->window);
-        XUnmapWindow(menu->display, menu->search->result->window);
+        ptr = malloc(sizeof(Entry));
+        if (!ptr){
+            perror("malloc");
+            return FAILURE;
+        }
+        memset(ptr, 0, sizeof(Entry));
+        menu->search->result->entries = ptr;
     }
+    size_t len = strlen(str) + 13;
+    ptr->fullname = malloc(len);
+    if (!ptr->fullname){
+        perror("malloc");
+        return FAILURE;
+    }
+    snprintf(ptr->fullname, len, "web search: %s", str);
+    ptr->name = strndup(ptr->fullname, cfg->max_len);
+    if (!ptr->name){
+        perror("strdup");
+        return FAILURE;
+    }
+    len = strlen(cfg->browser) + strlen(cfg->search_engine)
+        + strlen(str) + 2;
+    ptr->exec = malloc(len);
+    if (!ptr->exec){
+        perror("malloc");
+        return FAILURE;
+    }
+    snprintf(ptr->exec, len, "%s %s%s", cfg->browser,
+             cfg->search_engine, str);
+    menu->search->result->count++;
+    const ushort size = strlen(ptr->name);
+    if (size > menu->search->result->largest)
+        menu->search->result->largest = size;
+    return SUCCESS;
 }

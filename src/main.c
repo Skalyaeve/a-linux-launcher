@@ -61,6 +61,7 @@ int main(int ac, char** av){
     menu.root->visible = YES;
     menu.focus = menu.root;
     menu.active = menu.root;
+    XMoveWindow(menu.display, menu.root->window, cfg.x, cfg.y);
     XMapWindow(menu.display, menu.root->window);
     return bye(update(&menu, &cfg), &cfg, &menu);
 }
@@ -80,8 +81,10 @@ int config(const char* const path, Config* const cfg,
     char* value;
     while ((read = getline(&line, &len, file)) != -1){
         if (line[0] == '#' || line[0] == '\n') continue;
-        key = ft_strip(strtok(line, "="));
-        value = ft_strip(strtok(NULL, "="));
+        key = strtok(line, "=");
+        value = line + strlen(key) + 1;
+        ft_strip(&key);
+        ft_strip(&value);
 
         if (!strcmp(key, "path")){
             cfg->path = get_realpath(value);
@@ -258,20 +261,23 @@ int init(Menu* const menu, Config* const cfg){
     }
     XSetFont(menu->display, menu->gc, font->fid);
     XFreeFont(menu->display, font);
-    if (setwindows(menu->display, menu->root) == FAILURE)
+    if (setwindows(menu->display, menu->root,
+                   &menu->root->window) == FAILURE)
         return errno;
     return SUCCESS;
 }
 
-byte setwindows(Display* const display, Windows* const ptr){
-    if (setprops(display, &ptr->window) == FAILURE) return FAILURE;
-    XSelectInput(display, ptr->window, ExposureMask | KeyPressMask);
+byte setwindows(Display* const display, Windows* const ptr,
+                Window* const window){
+    if (setprops(display, window) == FAILURE) return FAILURE;
+    XSelectInput(display, *window, ExposureMask | KeyPressMask);
     ptr->draw_start = ptr->entries;
     ushort count = ptr->count;
     Entry* entry = ptr->entries;
     while (entry){
         if (entry->child
-            && setwindows(display, entry->child) == FAILURE)
+            && setwindows(display, entry->child,
+                          &entry->child->window) == FAILURE)
                 return FAILURE;
         if (count && !--count) ptr->draw_end = entry;
         entry = entry->next;
@@ -334,7 +340,6 @@ byte bye(const int code, Config* const cfg, Menu* const menu){
     if (menu->root) free_window(menu->root);
     if (menu->search){
         if (menu->search->str) free_chardlist(menu->search->str);
-        if (menu->search->input) free_window(menu->search->input);
         if (menu->search->result) free_window(menu->search->result);
         free(menu->search);
     }

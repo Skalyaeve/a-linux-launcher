@@ -33,8 +33,8 @@ void free_chardlist(Chardlist* list){
     }
 }
 
-void ft_strip(char* const str){
-    size_t len = strlen(str);
-    while (len && isspace(str[len - 1])) str[--len] = '\0';
-    while (isspace(*str)) ++str;
+void ft_strip(char** str){
+    size_t len = strlen(*str);
+    while (len && isspace((*str)[len - 1])) (*str)[len-- - 1] = '\0';
+    while (isspace(**str)) (*str)++;
 }

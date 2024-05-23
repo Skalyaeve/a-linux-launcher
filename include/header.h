@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <dirent.h>
+#include <ctype.h>
 #include <sys/stat.h>
 
 typedef char bool;
@@ -85,7 +86,6 @@ struct s_menu{
 struct s_input{
     Chardlist* str;
     size_t len;
-    Windows* input;
     Windows* result;
 };
 struct s_windows{
@@ -132,7 +132,8 @@ int config(const char* const path, Config* const cfg,
             Display* const display, const int screen);
 int check_args(Config* const cfg);
 int init(Menu* const menu, Config* const cfg);
-byte setwindows(Display* const display, Windows* const ptr);
+byte setwindows(Display* const display, Windows* const ptr,
+                Window* const window);
 byte setprops(Display* const display, Window* const window);
 byte bye(const int code, Config* const cfg, Menu* const menu);
 
@@ -171,16 +172,20 @@ void toggle_menu(const bool show, Display* const display,
 
 //================================ SEARCH
 byte init_search(Menu* const menu, Config* const cfg);
-void toggle_search(const bool show, Menu* const menu);
 byte update_search(Menu* const menu, const KeySym keysym,
                    byte* const mode, Config* const cfg);
-byte update_input(Menu* const menu, Config* const cfg);
-byte update_result(Menu* const menu, Config* const cfg);
+char* update_input(Menu* const menu);
+byte update_result(Menu* const menu, Config* const cfg,
+                   char* const str);
+Entry* get_search_result(Entry* src, char* const str,
+                         Config* const cfg, Menu* const menu);
+byte add_websearch(Menu* const menu, Config* const cfg,
+                   char* const str);
 
 //================================ UTILS
 char* get_realpath(const char* const path);
 void free_strlist(Strlist* list);
 void free_chardlist(Chardlist* list);
-void ft_strip(char* const str);
+void ft_strip(char** str);
 
 #endif
