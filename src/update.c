@@ -10,13 +10,17 @@ byte update(Menu* const menu, Config* const cfg){
         while (XPending(menu->display) > 0){
             XNextEvent(menu->display, &event);
             switch (event.type){
+
                 case Expose:
                     draw(cfg, menu, menu->active);
                     break;
+
                 case KeyPress:
                     keysym = XLookupKeysym(&event.xkey, 0);
+
                     if (keysym == XK_Up || keysym == XK_Down)
                         update_selected(menu, cfg, keysym);
+
                     else if (keysym == XK_Left
                             || keysym == XK_Right){
                         switch (mode){
@@ -34,6 +38,7 @@ byte update(Menu* const menu, Config* const cfg){
                                  cfg, menu);
                     }
                     else if (keysym == XK_Escape) stop = True;
+
                     else{
                         if (keysym == XK_BackSpace
                             && (!menu->search || !menu->search->str))
@@ -41,6 +46,9 @@ byte update(Menu* const menu, Config* const cfg){
                         if (!menu->search
                             && init_search(menu, cfg) == FAILURE)
                             return FAILURE;
+
+                        if (update_search(menu, keysym, &mode, cfg)
+                            != SUCCESS) return FAILURE;
                         if (mode == MENU){
                             mode = SEARCH;
                             menu->last_focus = menu->focus;
@@ -48,8 +56,6 @@ byte update(Menu* const menu, Config* const cfg){
                                         menu->root);
                             toggle_search(YES, menu);
                         }
-                        if (update_search(menu, keysym, &mode)
-                            != SUCCESS) return FAILURE;
                         draw(cfg, menu, menu->active);
                     }
                     break;
@@ -62,27 +68,33 @@ byte update(Menu* const menu, Config* const cfg){
 void draw(Config* const cfg, Menu* const menu,
           Windows* const window){
     if (window->visible == NO) return;
+
     Entry* ptr = window->draw_start;
     ushort y = cfg->y_padding + cfg->font_size * 0.75;
-    while (ptr != window->draw_end){
+    while (ptr != window->draw_end->next){
         XSetForeground(menu->display, menu->gc, cfg->bg_color.pixel);
+
         XFillRectangle(menu->display, window->window, menu->gc,
                        0, y - cfg->font_size - cfg->font_size * 0.25,
                        cfg->x_padding * 2 + window->largest + 100,
                        cfg->font_size + cfg->line_margin);
+
         if (ptr == window->selected){
             XSetForeground(menu->display, menu->gc,
                            cfg->focus_bg_color.pixel);
+
             XFillRectangle(menu->display, window->window, menu->gc,
                            0, y - cfg->font_size - cfg->font_size
                            * 0.25, cfg->x_padding * 2 + 100
                            + window->largest, cfg->font_size
                            + cfg->line_margin);
+
             XSetForeground(menu->display, menu->gc,
                            cfg->focus_fg_color.pixel);
         }
         else XSetForeground(menu->display, menu->gc,
                             cfg->fg_color.pixel);
+
         XDrawString(menu->display, window->window, menu->gc,
                     cfg->x_padding, y, ptr->name, strlen(ptr->name));
         y += cfg->font_size + cfg->line_margin;
@@ -94,9 +106,12 @@ void draw(Config* const cfg, Menu* const menu,
 void update_selected(Menu* const menu, Config* const cfg,
                      const KeySym keysym){
     if (!menu->focus->entries) return;
+
     Entry* ptr;
-    if (!menu->focus->selected)
+    if (!menu->focus->selected){
+        ++menu->focus->index;
         menu->focus->selected = menu->focus->entries;
+    }
     else{
         if (menu->focus->selected->child){
             menu->focus->selected->child->visible = NO;
@@ -105,62 +120,100 @@ void update_selected(Menu* const menu, Config* const cfg,
         }
         switch (keysym){
             case XK_Up:
-                if (menu->focus->selected == menu->focus->draw_start
-                    && menu->focus->selected->prev)
-                        menu->focus->draw_start
-                            = menu->focus->draw_start->prev;
                 menu->focus->selected = menu->focus->selected->prev;
+
                 if (!menu->focus->selected){
+                    menu->focus->index = menu->focus->count;
                     ptr = menu->focus->entries;
                     while (ptr->next) ptr = ptr->next;
                     menu->focus->selected = ptr;
-                    menu->focus->draw_end = ptr;
-                    menu->focus->draw_start = ptr;
-                    for (ushort i = menu->focus->count; i > 0; --i)
+
+                    menu->focus->draw_end = menu->focus->selected;
+                    menu->focus->draw_start = menu->focus->selected;
+                    for (ushort x = 0; x < menu->focus->count - 1;
+                        ++x)
                         menu->focus->draw_start
                             = menu->focus->draw_start->prev;
                 }
+                else if (menu->focus->selected
+                    == menu->focus->draw_start->prev){
+                    menu->focus->draw_start
+                        = menu->focus->draw_start->prev;
+                    menu->focus->draw_end
+                        = menu->focus->draw_end->prev;
+                }
+                else menu->focus->index--;
                 break;
             case XK_Down:
-                if (menu->focus->selected == menu->focus->draw_end
-                    && menu->focus->selected->next)
-                        menu->focus->draw_start
-                            = menu->focus->draw_start->next;
                 menu->focus->selected = menu->focus->selected->next;
+
                 if (!menu->focus->selected){
+                    menu->focus->index = 1;
                     menu->focus->selected = menu->focus->entries;
-                    menu->focus->draw_start = menu->focus->entries;
-                    menu->focus->draw_end = menu->focus->entries;
-                    for (ushort i = menu->focus->count; i > 0; --i)
+
+                    menu->focus->draw_start = menu->focus->selected;
+                    menu->focus->draw_end = menu->focus->selected;
+                    for (ushort x = 0; x < menu->focus->count - 1;
+                        ++x)
                         menu->focus->draw_end
                             = menu->focus->draw_end->next;
                 }
+                else if (menu->focus->selected
+                    == menu->focus->draw_end->next){
+                    menu->focus->draw_start
+                        = menu->focus->draw_start->next;
+                    menu->focus->draw_end
+                        = menu->focus->draw_end->next;
+                }
+                else menu->focus->index++;
                 break;
         }
     }
-    if (menu->focus->selected->child) spawn_child(menu);
+    if (menu->focus->selected->child){
+        menu->focus->selected->child->y = menu->focus->y
+            + (menu->focus->index - 1)
+            * (cfg->font_size + cfg->line_margin);
+        spawn_child(menu);
+    }
     draw(cfg, menu, menu->active);
 }
 
 void update_focus(Menu* const menu, Config* const cfg,
                   const KeySym keysym){
     if (!menu->focus->selected) return;
+
     switch (keysym){
         case XK_Left:
             if (!menu->focus->parent) return;
+
             if (menu->focus->selected->child){
                 menu->focus->selected->child->visible = NO;
                 XUnmapWindow(menu->display,
                              menu->focus->selected->child->window);
             }
             menu->focus->selected = NULL;
+            menu->focus->index = 0;
+
+            menu->focus->draw_start = menu->focus->entries;
+            menu->focus->draw_end = menu->focus->entries;
+            for (ushort x = 0; x < menu->focus->count - 1; ++x)
+                menu->focus->draw_end = menu->focus->draw_end->next;
+
             menu->focus = menu->focus->parent;
             break;
         case XK_Right:
             if (!menu->focus->selected->child) return;
+
             menu->focus = menu->focus->selected->child;
             menu->focus->selected = menu->focus->entries;
-            if (menu->focus->selected->child) spawn_child(menu);
+            menu->focus->index = 1;
+
+            if (menu->focus->selected->child){
+                menu->focus->selected->child->y = menu->focus->y
+                    + (menu->focus->index - 1)
+                    * (cfg->font_size + cfg->line_margin);
+                spawn_child(menu);
+            }
             break;
     }
     draw(cfg, menu, menu->active);
@@ -169,15 +222,18 @@ void update_focus(Menu* const menu, Config* const cfg,
 void spawn_child(Menu* const menu){
     XWindowAttributes attr;
     menu->focus->selected->child->visible = YES;
+
     XMoveWindow(menu->display, menu->focus->selected->child->window,
                 menu->focus->selected->child->x,
                 menu->focus->selected->child->y);
+
     XMapWindow(menu->display, menu->focus->selected->child->window);
     do{
         XGetWindowAttributes(
             menu->display,
             menu->focus->selected->child->window, &attr);
     }while (attr.map_state != IsViewable);
+
     XSetInputFocus(menu->display, menu->focus->window,
                    RevertToParent, CurrentTime);
 }
@@ -208,6 +264,7 @@ void toggle_menu(const bool show, Display* const display,
                  Windows* const window){
     for (Entry* ptr = window->entries; ptr; ptr = ptr->next)
         if (ptr->child) toggle_menu(show, display, ptr->child);
+
     if (window->visible == YES){
         switch (show){
             case YES:

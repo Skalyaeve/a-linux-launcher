@@ -1,26 +1,28 @@
-x=-2
-y=4
-x-padding=14
-y-padding=18
-line-margin=20
-max-lines=2
-border-size=4
-window-margin=-4
+x               = -2
+y               = 4
+x-padding       = 14
+y-padding       = 18
+line-margin     = 20
+max-lines       = -1
+border-size     = 4
+window-margin   = -4
 
-font-size=20
-max-len=-1
-font=-misc-terminess nerd font propo-medium-r-normal--20-0-0-0-p-0-iso10646-1
-# font=10x20
+font-size       = 20
+max-len         = -1
+font            = -misc-terminess nerd font propo-medium-r-normal--20-0-0-0-p-0-iso10646-1
+# font = 10x20
 # list fonts --> $ xlsfonts
 
-bg-color=#121212
-fg-color=#aaaaaa
-focus-bg-color=#331a33
-focus-fg-color=#ffffff
-border-color=#242424
+bg-color        = #121212
+fg-color        = #aaaaaa
+focus-bg-color  = #331a33
+focus-fg-color  = #ffffff
+border-color    = #242424
+input-bg-color  = #242424
+input-fg-color  = #ffffff
 
-path=~/.local/share/applications
-terminal=x-terminal-emulator -e
-shell=bash -c
-browser=firefox-esr --new-tab
-search-engine=google.com/search?q=
+path            = ~/.local/share/applications
+terminal        = x-terminal-emulator -e
+shell           = bash -c
+browser         = firefox-esr --new-tab
+search-engine   = google.com/search?q=

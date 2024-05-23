@@ -1,7 +1,14 @@
 #include "../include/header.h"
 
 volatile sig_atomic_t stop = False;
-void sig_hdl(const int sig){ (void)sig; stop = True; }
+void sig_hdl(const int sig){
+    if (sig == SIGSEGV){
+        unlink(LOCKFILE);
+        fprintf(stderr, "That's why you need to sleep\n");
+        exit(FAILURE);
+    }
+    stop = True;
+}
 
 int main(int ac, char** av){
     FILE* lock = fopen(LOCKFILE, "r");
@@ -30,6 +37,7 @@ int main(int ac, char** av){
     sigaction(SIGINT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGQUIT, &sa, NULL);
+    sigaction(SIGSEGV, &sa, NULL);
 
     Config cfg = {0};
     Menu menu = {0};
@@ -72,9 +80,8 @@ int config(const char* const path, Config* const cfg,
     char* value;
     while ((read = getline(&line, &len, file)) != -1){
         if (line[0] == '#' || line[0] == '\n') continue;
-        key = strtok(line, "=");
-        value = strtok(NULL, "=");
-        value[strlen(value) - 1] = '\0';
+        key = ft_strip(strtok(line, "="));
+        value = ft_strip(strtok(NULL, "="));
 
         if (!strcmp(key, "path")){
             cfg->path = get_realpath(value);
@@ -110,6 +117,16 @@ int config(const char* const path, Config* const cfg,
         else if (!strcmp(key, "focus-fg-color")){
             XParseColor(display, colormap, value,
                         &cfg->focus_fg_color);
+            XAllocColor(display, colormap, &cfg->focus_fg_color);
+        }
+        else if (!strcmp(key, "input-bg-color")){
+            XParseColor(display, colormap, value,
+                        &cfg->input_bg_color);
+            XAllocColor(display, colormap, &cfg->focus_bg_color);
+        }
+        else if (!strcmp(key, "input-fg-color")){
+            XParseColor(display, colormap, value,
+                        &cfg->input_fg_color);
             XAllocColor(display, colormap, &cfg->focus_fg_color);
         }
         else if (!strcmp(key, "x-padding"))
@@ -172,13 +189,47 @@ int config(const char* const path, Config* const cfg,
     }
     fclose(file);
     if (line) free(line);
+    return read == -1 ? check_args(cfg) : errno;
+}
 
-    if (!cfg->terminal || !cfg->shell
-        || !cfg->browser || !cfg->search_engine){
-        fprintf(stderr, "Missing required key\n");
+int check_args(Config* const cfg){
+    if (!cfg->path){
+        fprintf(stderr, "No path specified\n");
         return FAILURE;
     }
-    return read == -1 ? SUCCESS : errno;
+    if (!cfg->font){
+        fprintf(stderr, "No font specified\n");
+        return FAILURE;
+    }
+    if (!cfg->terminal){
+        fprintf(stderr, "No terminal specified\n");
+        return FAILURE;
+    }
+    if (!cfg->shell){
+        fprintf(stderr, "No shell specified\n");
+        return FAILURE;
+    }
+    if (!cfg->browser){
+        fprintf(stderr, "No browser specified\n");
+        return FAILURE;
+    }
+    if (!cfg->search_engine){
+        fprintf(stderr, "No search engine specified\n");
+        return FAILURE;
+    }
+    if (!cfg->font_size){
+        fprintf(stderr, "Font size should be greater than 0\n");
+        return FAILURE;
+    }
+    if (!cfg->max_len){
+        fprintf(stderr, "Max length should be greater than 0\n");
+        return FAILURE;
+    }
+    if (!cfg->max_lines){
+        fprintf(stderr, "Max lines should be greater than 0\n");
+        return FAILURE;
+    }
+    return SUCCESS;
 }
 
 int init(Menu* const menu, Config* const cfg){
@@ -222,8 +273,8 @@ byte setwindows(Display* const display, Windows* const ptr){
         if (entry->child
             && setwindows(display, entry->child) == FAILURE)
                 return FAILURE;
-        entry = entry->next;
         if (count && !--count) ptr->draw_end = entry;
+        entry = entry->next;
     }
     if (!ptr->draw_end) ptr->draw_end = entry;
     return SUCCESS;

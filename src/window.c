@@ -160,18 +160,21 @@ bool create_childs(Windows* const window, const char* const path,
 }
 
 void free_window(Windows* const window){
-    Entry* entry = window->entries;
-    Entry* next;
-    while (entry){
-        next = entry->next;
-        if (entry->name) free(entry->name);
-        if (entry->fullname) free(entry->fullname);
-        if (entry->exec) free(entry->exec);
-        if (entry->child) free_window(entry->child);
-        free(entry);
-        entry = next;
-    }
+    free_entries(window->entries);
     free(window);
+}
+
+void free_entries(Entry* entries){
+    Entry* next;
+    while (entries){
+        next = entries->next;
+        if (entries->name) free(entries->name);
+        if (entries->fullname) free(entries->fullname);
+        if (entries->exec) free(entries->exec);
+        if (entries->child) free_window(entries->child);
+        free(entries);
+        entries = next;
+    }
 }
 
 int new_app(const char* const path, Entry* const entry,
@@ -359,12 +362,12 @@ byte order_entries(Entry* entries, Strlist* order,
 
 Window new_window(Windows* const window, Menu* const menu,
                   Config* const cfg){
-    const ushort lines = window->count > cfg->max_lines
-        ? cfg->max_lines : window->count;
+    if (window->count > cfg->max_lines)
+        window->count = cfg->max_lines;
     return XCreateSimpleWindow(
         menu->display, RootWindow(menu->display, menu->screen),
         window->x, window->y, window->largest, cfg->font_size
-        * lines + cfg->line_margin * (lines - 1) + cfg->y_padding
-        * 2, cfg->border_size, cfg->border_color.pixel,
-        cfg->bg_color.pixel);
+        * window->count + cfg->line_margin * (window->count - 1)
+        + cfg->y_padding * 2, cfg->border_size,
+        cfg->border_color.pixel, cfg->bg_color.pixel);
 }

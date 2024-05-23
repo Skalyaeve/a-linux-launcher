@@ -57,6 +57,8 @@ struct s_config{
     XColor fg_color;
     XColor focus_bg_color;
     XColor focus_fg_color;
+    XColor input_bg_color;
+    XColor input_fg_color;
     short x_padding;
     short y_padding;
     short line_margin;
@@ -82,6 +84,7 @@ struct s_menu{
 };
 struct s_input{
     Chardlist* str;
+    size_t len;
     Windows* input;
     Windows* result;
 };
@@ -90,6 +93,7 @@ struct s_windows{
     short y;
     ushort largest;
     ushort count;
+    ushort index;
     Window window;
     bool visible;
     Entry* entries;
@@ -126,6 +130,7 @@ struct s_chardlist{
 void sig_hdl(const int sig);
 int config(const char* const path, Config* const cfg,
             Display* const display, const int screen);
+int check_args(Config* const cfg);
 int init(Menu* const menu, Config* const cfg);
 byte setwindows(Display* const display, Windows* const ptr);
 byte setprops(Display* const display, Window* const window);
@@ -141,6 +146,7 @@ bool create_childs(Windows* const window, const char* const path,
                    ushort y_offset, Menu* const menu,
                    Config* const cfg);
 void free_window(Windows* const window);
+void free_entries(Entry* entries);
 int new_app(const char* const path, Entry* const entry,
             Config* const cfg);
 char* fill_exec(Exec* const exec, Config* const cfg);
@@ -167,11 +173,14 @@ void toggle_menu(const bool show, Display* const display,
 byte init_search(Menu* const menu, Config* const cfg);
 void toggle_search(const bool show, Menu* const menu);
 byte update_search(Menu* const menu, const KeySym keysym,
-                   byte* const mode);
+                   byte* const mode, Config* const cfg);
+byte update_input(Menu* const menu, Config* const cfg);
+byte update_result(Menu* const menu, Config* const cfg);
 
 //================================ UTILS
 char* get_realpath(const char* const path);
 void free_strlist(Strlist* list);
 void free_chardlist(Chardlist* list);
+void ft_strip(char* const str);
 
 #endif
