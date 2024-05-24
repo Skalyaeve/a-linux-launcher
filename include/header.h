@@ -58,8 +58,6 @@ struct s_config{
     XColor fg_color;
     XColor focus_bg_color;
     XColor focus_fg_color;
-    XColor input_bg_color;
-    XColor input_fg_color;
     short x_padding;
     short y_padding;
     short line_margin;

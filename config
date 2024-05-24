@@ -18,8 +18,6 @@ fg-color        = #aaaaaa
 focus-bg-color  = #331a33
 focus-fg-color  = #ffffff
 border-color    = #242424
-input-bg-color  = #242424
-input-fg-color  = #ffffff
 
 path            = ~/.local/share/applications
 terminal        = x-terminal-emulator -e

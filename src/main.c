@@ -122,16 +122,6 @@ int config(const char* const path, Config* const cfg,
                         &cfg->focus_fg_color);
             XAllocColor(display, colormap, &cfg->focus_fg_color);
         }
-        else if (!strcmp(key, "input-bg-color")){
-            XParseColor(display, colormap, value,
-                        &cfg->input_bg_color);
-            XAllocColor(display, colormap, &cfg->focus_bg_color);
-        }
-        else if (!strcmp(key, "input-fg-color")){
-            XParseColor(display, colormap, value,
-                        &cfg->input_fg_color);
-            XAllocColor(display, colormap, &cfg->focus_fg_color);
-        }
         else if (!strcmp(key, "x-padding"))
             cfg->x_padding = atoi(value);
 

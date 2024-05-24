@@ -36,7 +36,7 @@ fclean: clean
 re: fclean all
 
 install:
-	@mkdir -p $(HOME)/.config/$(NAME)
+	@mkdir $(HOME)/.config/$(NAME)
 	@cp config $(HOME)/.config/$(NAME)/config
 	@ln -sf $(PWD)/$(NAME) $(HOME)/.local/bin/$(NAME)
 	@echo $(NAME) installed
