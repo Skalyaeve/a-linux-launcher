@@ -63,3 +63,5 @@ export PATH=$HOME/.local/bin:$PATH
 launcher ~/.config/launcher/config
 ```
 
+> [!WARNING]
+> If the process is killed (`SIGKILL`) or closed with something else than `ESC`, `SIGINT`, `SIGTERM` or `SIGQUIT`, you will have to remove the lock file located at `/tmp/launcher.ft.lock` before you can run the program again
