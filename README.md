@@ -64,4 +64,4 @@ launcher ~/.config/launcher/config
 ```
 
 > [!WARNING]
-> If the process is killed (`SIGKILL`) or closed with something else than `ESC`, `SIGINT`, `SIGTERM` or `SIGQUIT`, you will have to remove the lock file located at `/tmp/launcher.ft.lock` before you can run the program again
+> If the process is killed (`SIGKILL`) or closed with something else than `ESC`, `SIGINT`, `SIGTERM` or `SIGQUIT`, you will have to remove the lockfile located at `/tmp/launcher.ft.lock` to rerun it 
