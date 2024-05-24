@@ -34,6 +34,7 @@ For exemple, having a valid entry file in `path/folder/app.desktop` creates a ca
 - `browser`: Browser command to use
 - `search-engine`: Search engine command to use, this is concatenated with `browser`
 
+> [!TIP]
 > Any font can be converted to a X11 font, ask Google
 
 ## Install
