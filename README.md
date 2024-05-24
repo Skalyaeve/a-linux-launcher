@@ -8,7 +8,7 @@ The program reads `.desktop` files from `path` (see config), using the following
 - `Terminal` - Whether to run in terminal
 
 Entries can be grouped by categories using file system tree from `path`.
-For exemple, having a valid entry file in `path/folder/app.desktop` creates a category `folder` and makes `app.desktop` an entry of it.
+For exemple, having a valid entry file in `path/folder/app.desktop` creates a category `folder` and makes `app.desktop` an entry of it
 
 ## Config
 
@@ -16,8 +16,8 @@ For exemple, having a valid entry file in `path/folder/app.desktop` creates a ca
 - `y`: Box position on the y-axis
 - `x-padding`: Space between box border and text on the x-axis
 - `y-padding`: Space between box border and text on the y-axis
-- `line-margin`: Space between lines
 - `border-size`: Box border size
+- `line-margin`: Space between lines
 - `window-margin`: Space between boxes
 - `max-lines`: Maximum number of lines for a box (aka max-height)
 - `max-len`: Maximum number of characters for a line (aka max-width)
@@ -32,7 +32,7 @@ For exemple, having a valid entry file in `path/folder/app.desktop` creates a ca
 - `terminal`: Terminal command to use
 - `shell`: Shell command to use
 - `browser`: Browser command to use
-- `search-engine`: Search engine command to use
+- `search-engine`: Search engine command to use, this is concatenated with `browser`
 
 > Any font can be converted to a X11 font, ask Google
 
@@ -62,3 +62,4 @@ export PATH=$HOME/.local/bin:$PATH
 # or ln -s $HOME/.local/bin/launcher /usr/local/bin/launcher
 launcher ~/.config/launcher/config
 ```
+
